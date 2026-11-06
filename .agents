@@ -2,6 +2,7 @@
 # AGENT OPERATIONAL DIRECTIVES & REPOSITORY SPECIFICATION
 # Project: U.S. Bulk Power Generation, Smokestack Emissions & Weather Lakehouse
 # Course:  DL3004 Data Warehousing & Business Intelligence (DWBI)
+# Technology: Databricks Serverless Cloud Lakehouse (Apache Spark & Delta Lake)
 # ==============================================================================
 
 This file contains binding instructions for any AI assistant or autonomous agent
@@ -14,172 +15,96 @@ operating within this workspace.
 ### 1.1 NEVER READ (STRICTLY PROHIBITED)
 Agents must NEVER scan, parse, or read files in the following directories:
 * ⛔ `01_Project_Documentation/research/`
-  * **Reason:** Contains archived Phase 1 exploratory notes, legacy dataset evaluations, and brainstormed architectures. Reading these files wastes token context, introduces obsolete schema assumptions, and pollutes reasoning with superseded ideas.
+  * **Reason:** Contains archived Phase 1 exploratory notes, legacy dataset evaluations, and brainstormed architectures. Reading these files wastes token context, introduces obsolete assumptions, and pollutes reasoning with superseded ideas.
 * ⛔ `01_Project_Documentation/Team_Guides/`
-  * **Reason:** Contains binary Microsoft Word onboarding documents (`.docx`) and scripts intended exclusively for human team coordination and onboarding. Parsing these files is unnecessary and unhelpful for coding or analysis tasks.
+  * **Reason:** Contains binary Microsoft Word onboarding documents (`.docx`) and scripts intended exclusively for human team coordination. Parsing these files is unnecessary and unhelpful for coding or analysis tasks.
 
 ### 1.2 ALWAYS READ (MANDATORY GROUND TRUTH)
 Before proposing, generating, or modifying any code, schema, query, or report, agents must ALWAYS read and verify compliance against:
 * ⚠️ `01_Project_Documentation/course_requirements/`
-  * **Reason:** Contains the authoritative academic guidelines, university syllabus, grading rubrics (`DWBI Lab Phase 2.pdf`, `DWBI Lab Phase 3.pdf`), and the official 11-stage reference architecture.
-  * **Critical Constraints Enforced by Rubric:**
-    * Exact PostgreSQL schemas required: `project_staging`, `project_dw`, `project_reporting`, and `quarantine`.
+  * **Reason:** Contains the official academic project syllabus, phase grading rubrics (`DWBI Lab Phase 2.pdf`, `DWBI Lab Phase 3.pdf`), and reference 11-stage pipeline architecture.
+  * **Core Rubric Requirements Mapped to Databricks:**
+    * Medallion Lakehouse layout: Bronze (Staging), Silver (Conformed & Cleansed), Gold (Star Schema Warehouse & Reporting Marts), Quarantine.
     * Minimum data volume: **100+ dimension rows**, **10,000+ fact rows**.
-    * Mandatory surrogate keys (`dim_xxx_key`) and natural-to-surrogate lookup mapping.
+    * Mandatory surrogate keys (`dim_xxx_key`) and business-key lookup mapping.
     * Formal data quality checks: Completeness, Accuracy, and Referential Integrity.
-    * Analytical SQL with window functions, `ROLLUP`, `CUBE`, and `EXPLAIN ANALYZE` index tuning.
-    * 3-Page Power BI dashboard structure (Executive Overview, Detailed Analysis, Decision Support).
+    * Analytical SQL with window functions, `ROLLUP`, `CUBE`, and query execution plan optimization.
+    * 3-Page Power BI dashboard (Executive Overview, Detailed Analysis, Decision Support).
 
 ---
 
-## 2. CANONICAL SYSTEM SPECIFICATIONS
+## 2. CANONICAL SYSTEM ARCHITECTURE: DATABRICKS ONLY
 
-When implementing or debugging project components, use these two authoritative blueprints as the single source of truth:
-1. **[`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md)**:
-   * Master blueprint for the **Local PostgreSQL Kimball Architecture** (the primary university submission stack).
-   * Defines the 5 conformed dimensions, 3 multi-grain facts, DDL specifications, thermodynamic validation bounds, and local execution rules.
-2. **[`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md)**:
-   * Master blueprint for the **Databricks Serverless Lakehouse Architecture** (the modern cloud enterprise extension).
-   * Defines Delta Lake, Unity Catalog (`dwbi_catalog`), PySpark extractors, Liquid Clustering, Serverless SQL Warehouse, and Power BI DirectQuery connectivity.
+There is NO dual architecture. The project is implemented exclusively on the **Databricks Serverless Cloud Lakehouse**:
+
+* **Cloud Platform:** Databricks (`databricks.com`)
+* **Processing Engine:** Apache Spark 3.5+ / 4.x on Serverless Compute (Photon Engine)
+* **Warehouse Engine:** Databricks Serverless SQL Warehouse
+* **Table & Storage Format:** Delta Lake (`USING DELTA`) with ACID log and Liquid Clustering
+* **Unified Governance:** Unity Catalog 3-tier namespace (`catalog.schema.table`)
+* **Target Catalog:** **`dwbi_catalog`**
+* **BI Connectivity:** Microsoft Power BI Desktop connected via Native Databricks Connector (**DirectQuery** to `gold_marts`)
+* **Primary Blueprints:**
+  * **[`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md)**: Master cloud architecture runbook.
+  * **[`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md)**: Master domain logic, mathematical formulas, and Kimball dimensional definitions.
 
 ---
 
-## 3. CURRENT ARCHITECTURE & RECENT UPDATES (GROUND TRUTH)
+## 3. UNITY CATALOG SPECIFICATION (`dwbi_catalog`)
 
-The repository has been updated with several major additions and enhancements. Agents must operate with this current state:
+All tables, views, and raw volumes live under **`dwbi_catalog`**:
 
-### 3.1 Dual Architecture Implementations
-* **Track 1: Local PostgreSQL 16+ Stack (University Course Submission)**
-  * **Host:** `localhost:5432` | **Database:** `dwbi_power_grid`
-  * **PostgreSQL Schemas:**
-    * `project_staging`: Bronze immutable raw landing tables and ingestion run logging (`etl_run_log`).
-    * `quarantine`: Dead-letter quarantine table (`rejected_records`) capturing DQ rejections with JSON payloads.
-    * `project_dw`: Kimball Star Schema (5 conformed dimensions + 3 fact tables).
-    * `project_reporting`: Curated analytical and materialized reporting views (`vw_emissions_intensity`, `vw_plant_performance`, `vw_monthly_generation`).
-  * **Engine:** Python 3.10+ (`pandas`, `openpyxl`, `requests`, `psycopg2`) & Power BI Desktop (`PowerBI.pbix`).
-* **Track 2: Databricks Serverless Lakehouse (Enterprise Extension)**
-  * **Unity Catalog:** `dwbi_catalog`
-  * **Schemas:** `bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`.
-  * **Storage:** Delta Lake on Cloud Object Storage with Liquid Clustering.
+```
+dwbi_catalog/
+├── Volumes/
+│   └── bronze_staging/
+│       └── raw_landing/                     # Raw files: EIA-860/923 (.xlsx), EPA CAMPD (.csv), NOAA (.csv)
+│
+├── Schemas:
+│   ├── bronze_staging                       # Append-only raw Delta tables + ingestion audit log (etl_run_log)
+│   ├── silver_conformed                     # Conformed units, deduplicated entities, crosswalk graph
+│   ├── gold_warehouse                       # Kimball Star Schema (5 Dims + 3 Multi-Grain Facts)
+│   ├── gold_marts                           # Materialized reporting views for Power BI DirectQuery
+│   └── quarantine                           # Dead-letter quarantine table (rejected_records)
+```
 
-### 3.2 Standardized Schemas & Tables (Do Not Alter Names)
-* **Conformed Dimensions:**
-  * `dim_date` (Surrogate PK: `date_key`, format `YYYYMMDD`)
-  * `dim_plant` (Surrogate PK: `plant_key`, Natural UK: `orispl_code`)
-  * `dim_generator` (SCD Type 2: Surrogate PK: `generator_key`, Natural: `orispl_code` + `generator_id`, tracked by `operating_status`, `is_current`, `row_effective_date`, `row_expiration_date`)
-  * `dim_balancing_authority` (Surrogate PK: `ba_key`, Natural UK: `ba_code`)
-  * `dim_weather_station` (Surrogate PK: `station_key`, Natural UK: `station_id`)
-* **Multi-Grain Fact Tables (Kimball Archetypes):**
-  1. `fact_hourly_emissions_weather` (**Transactional Fact**, partitioned by month):
+### 3.1 Standardized Tables in `gold_warehouse`
+* **Dimensions:**
+  * `dim_date`: PK `date_key` (INT, `YYYYMMDD`)
+  * `dim_plant`: PK `plant_key` (BIGINT IDENTITY), Natural UK `orispl_code`
+  * `dim_generator`: PK `generator_key` (BIGINT IDENTITY), Natural `(orispl_code, generator_id)`. **SCD Type 2** tracked via `operating_status`, `valid_from`, `valid_to`, `is_current`.
+  * `dim_balancing_authority`: PK `ba_key` (BIGINT IDENTITY), Natural UK `ba_code`
+  * `dim_weather_station`: PK `station_key` (BIGINT IDENTITY), Natural UK `station_id`
+* **Fact Tables (3 Kimball Archetypes):**
+  1. `fact_hourly_emissions_weather` (**Transactional Fact**):
      * PK: `(date_key, hour_of_day, plant_key, unit_id)`
-     * Measures: `gross_load_mw`, `heat_input_mmbtu`, `so2_mass_lbs`, `nox_mass_lbs`, `co2_mass_tons`, `ambient_temp_celsius`, `wind_speed_mps`, `weather_distance_km`.
+     * Optimization: Liquid Clustering via `CLUSTER BY (date_key, plant_key)`
   2. `fact_monthly_plant_operations` (**Periodic Snapshot Fact**):
-     * PK: `snapshot_key` | FK: `month_start_date_key`, `plant_key`
-     * Measures: `net_generation_mwh` (can be negative during maintenance), `fuel_consumed_physical`, `fuel_consumed_mmbtu`, `avg_heat_rate_btu_kwh`, `delivered_fuel_cost_per_mmbtu`, `ending_fuel_stock_physical`.
+     * PK: `snapshot_key` (BIGINT IDENTITY), FK: `month_start_date_key`, `plant_key`
+     * Measures: `net_generation_mwh` (allows negative during maintenance), `fuel_consumed_mmbtu`, `avg_heat_rate_btu_kwh`, etc.
   3. `fact_regional_grid_demand` (**Aggregate Grid Fact**):
      * PK: `(date_key, hour_of_day, ba_key)`
-     * Measures: `demand_mw`, `demand_forecast_mw`, `net_gen_coal_mw`, `net_gen_gas_mw`, `net_gen_nuclear_mw`, `net_gen_hydro_mw`, `net_gen_wind_mw`, `net_gen_solar_mw`, `net_interchange_mw`.
-
-### 3.3 Authoritative Public Data Sources
-1. **EIA-860 / EIA-860M:** Generator inventory, prime movers, capacities, and `6_1_EnviroAssoc` boiler-generator mapping.
-2. **EIA-923:** Monthly net generation, fuel consumption, heat input, and fuel stocks.
-3. **EIA-930:** Real-time hourly regional grid electrical demand, fuel dispatch mix, and interchange flows.
-4. **EPA CAMPD (CEMS):** Hourly smokestack emissions ($\text{SO}_2, \text{NO}_x, \text{CO}_2$), gross load, and heat input.
-5. **EPA-EIA Crosswalk:** Federal bipartite crosswalk bridging combustion boilers to electric generators.
-6. **NOAA ISD (Integrated Surface Database):** Hourly synoptic weather observations (temperature, wind speed, pressure).
-
-### 3.4 Defensive Engineering Gotchas & Physical Rules
-* **Shifting Header Rows:**
-  * EIA-860 (`6_1_EnviroAssoc`): Header is on **Row 2** (0-indexed row 1).
-  * EIA-923: Header is on **Row 6** (0-indexed row 5).
-  * *Rule:* Never use fixed row offsets; dynamically discover header rows containing `'Plant Code'` or `'Plant Id'`.
-* **String Sentinels:**
-  * Convert literal string markers (`"."`, `"NM"`, `"*"`, `""`) in numeric fields to SQL `NULL`.
-  * Convert NOAA sensor dropout integer `-9999` to SQL `NULL` and extract sensor quality flags into separate attributes.
-* **Negative Net Generation:**
-  * Offline power plants consume station service power from the grid during maintenance. Negative values in EIA-923 are valid operational facts and must NOT be rejected by data quality checks.
-* **Thermodynamic Heat Rate Validation Bounds:**
-  * CCGT (Combined Cycle): $5,000 \le \text{Heat Rate} \le 14,000\text{ Btu/kWh}$.
-  * Coal Steam Turbines: $8,500 \le \text{Heat Rate} \le 18,000\text{ Btu/kWh}$.
-  * Peaker Gas Turbines: $9,000 \le \text{Heat Rate} \le 22,000\text{ Btu/kWh}$.
-  * Values outside these boundaries are routed to `quarantine.rejected_records`.
-* **Physical Conservation Reconciliation:**
-  * $\text{Net Generation (EIA-923)} \le \text{Gross Generation (EPA CAMPD)}$ under normal operation. Auxiliary load ratio expected between $3\%$ and $14\%$.
-
-### 3.5 Phase 1 Deliverables Status
-Phase 1 (Design & Architecture) is **100% complete**. Deliverables are verified in:
-* `Phase_1_Submission/`: Contains the master 8-chapter proposal, architecture specification, execution plan, executive summary checklist, and data dictionary.
-* `01_Project_Documentation/`: Houses the official course PDF exports (`Requirements.pdf`, `Schema.pdf`) and authoritative `Data_Dictionary.xlsx`.
-
-### 3.6 4-Person Division of Work (Phase 2 & 3 Execution)
-* **Work Package 1 (WP1): Ingestion & Bronze Lakehouse Lead**
-  * Scope: Raw landing, Bronze staging DDL, PySpark / Python extractors, shifting header discovery, and ETL run logging.
-* **Work Package 2 (WP2): Data Quality & Silver Conformance Lead**
-  * Scope: Cleansing pipelines, sentinel coercion, dead-letter quarantine logic, SCD Type 1 & 2 processing, and DQ report.
-* **Work Package 3 (WP3): Dimensional Warehouse & Gold Layer Architect**
-  * Scope: Kimball Star Schema DDL, surrogate key lookups, 3 multi-grain fact tables, partitioning / liquid clustering, and query tuning.
-* **Work Package 4 (WP4): Analytics, OLAP, Power BI & Performance Lead**
-  * Scope: Gold reporting views, OLAP SQL (`ROLLUP`/`CUBE`), window functions, 3-page Power BI dashboard, and execution plan benchmarks.
+     * Measures: `demand_mw`, `net_gen_coal_mw`, `net_gen_gas_mw`, `net_gen_wind_mw`, `net_gen_solar_mw`, `net_interchange_mw`.
 
 ---
 
-## 4. REPOSITORY DIRECTORY LAYOUT
+## 4. DEFENSIVE ENGINEERING GOTCHAS & DOMAIN RULES
 
-```
-DWBI-Final-Project/
-├── .agents                           # THIS FILE (AI Agent Operational Directives & Rules)
-├── .gitignore                        # Git exclusion rules
-├── README.md                         # Project overview, architecture tracks, and setup guide
-├── PROJECT_BLUEPRINT.md              # Canonical Kimball Architecture & Local DDL Specification
-├── DATABRICKS_SERVERLESS_ARCHITECTURE.md # Enterprise Cloud Lakehouse Specification
-│
-├── 01_Project_Documentation/
-│   ├── Requirements.pdf              # Official course submission: Project problem statement
-│   ├── Schema.pdf                    # Official course submission: Visual Star Schema diagram
-│   ├── Data_Dictionary.xlsx          # Official course submission: Complete 7-tab data catalog
-│   ├── Architecture.pdf / .png       # High-resolution pipeline architecture exports
-│   ├── Schema.jpg / .png             # High-resolution Star Schema raster exports
-│   ├── schema_diagram_mermaid.md     # Verified Mermaid code for Draw.io diagram rendering
-│   ├── Requirements.md               # Markdown summary linking to Phase 1 documents
-│   ├── README.md                     # Documentation folder index and guidelines
-│   ├── course_requirements/          # ⚠️ MANDATORY: University syllabus, rubrics, architecture
-│   ├── research/                     # ⛔ ARCHIVED: Exploratory notes (DO NOT PARSE)
-│   └── Team_Guides/                  # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
-│
-├── Phase_1_Submission/               # Complete formal academic Phase 1 package
-│   ├── Phase_1_Project_Proposal_and_Design_Document.md
-│   ├── Phase_1_Architecture_and_Schema_Specification.md
-│   ├── Phase_1_Data_Dictionary.md
-│   ├── Phase_1_Project_Execution_Plan.md
-│   ├── Phase_1_Executive_Summary_and_Checklist.md
-│   ├── Data_Dictionary.xlsx
-│   ├── Requirements.pdf
-│   ├── Schema.pdf
-│   ├── Architecture.pdf
-│   ├── Architecture_Pipeline_Diagram.png
-│   └── Schema_Diagram.jpg
-│
-├── 02_Data/
-│   ├── raw_data/                     # Raw downloaded source archives (EIA, EPA, NOAA)
-│   └── cleaned_data/                 # Cleaned CSV outputs ready for Silver/Gold loading
-│
-├── 03_ETL/
-│   ├── staging.sql                   # Bronze staging tables (project_staging) & quarantine table
-│   └── quality_checks.sql            # Automated SQL rules routing invalid records to quarantine
-│
-├── 04_Data_Warehouse/
-│   └── warehouse.sql                 # Production DDL for Star Schema (Tables, PKs, FKs, Partitions)
-│
-├── 05_Analytics/
-│   ├── OLAP.sql                      # Multi-dimensional aggregations (ROLLUP, CUBE, Windowing)
-│   └── Views.sql                     # Gold Layer Materialized Views for Power BI consumption
-│
-├── 06_Dashboard/
-│   ├── README.md                     # 3-Page Power BI specification & connection guide
-│   └── PowerBI.pbix                  # Interactive Power BI report
-│
-└── scripts/
-    ├── build_team_docs.py            # Generator script for Team Onboarding Word guides
-    └── archive/                      # Historical/scratch utility scripts
-```
+1. **Shifting Excel Headers:** EIA-860 headers are on Row 2; EIA-923 headers are on Row 6. Handled via programmatic header discovery scanning for `'Plant Code'` / `'Plant Id'`.
+2. **Missing Value Sentinels:** Coerces literal strings (`"."`, `"NM"`, `"*"`, `""`) and NOAA's integer `-9999` to `NULL`.
+3. **Negative Net Generation:** Valid business event in EIA-923 caused by offline power plants consuming auxiliary grid power during maintenance. Must NEVER be rejected by DQ checks.
+4. **Thermodynamic Heat Rate Validation Bounds:**
+   * CCGT (Combined Cycle): $5,000 \le \text{Heat Rate} \le 14,000\text{ Btu/kWh}$
+   * Coal Steam Turbines: $8,500 \le \text{Heat Rate} \le 18,000\text{ Btu/kWh}$
+   * Peakers (Gas Turbines): $9,000 \le \text{Heat Rate} \le 22,000\text{ Btu/kWh}$
+   * Violations routed to `dwbi_catalog.quarantine.rejected_records`.
+5. **Physical Auxiliary Reconciliation:** $\text{Net Generation (EIA-923)} \le \text{Gross Generation (EPA CAMPD)}$ with auxiliary load ratios expected between $3\%$ and $14\%$.
 
+---
+
+## 5. 4-PERSON DIVISION OF WORK
+
+* **Work Package 1: Ingestion & Bronze Lakehouse Lead** — Muhammad Ibrahim (24L-2602)
+* **Work Package 2: Data Quality & Silver Conformance Lead** — Rai Fahad Sultan (24L-2509)
+* **Work Package 3: Dimensional Warehouse & Gold Layer Architect** — Muhammad Ayyan (24L-2568)
+* **Work Package 4: Analytics, OLAP, Power BI & Performance Lead** — Taha Imran (24L-2560)

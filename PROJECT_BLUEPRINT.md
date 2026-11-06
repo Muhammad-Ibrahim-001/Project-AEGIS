@@ -11,14 +11,13 @@
 * **Course:** DL3004 Data Warehousing and Business Intelligence (DWBI) Final Project.
 * **Objective:** Implement an enterprise-grade, end-to-end analytical data pipeline:
   $$\text{Source Systems} \longrightarrow \text{Ingestion} \longrightarrow \text{Bronze (Staging)} \longrightarrow \text{Data Quality/Quarantine} \longrightarrow \text{Silver} \longrightarrow \text{Data Warehouse} \longrightarrow \text{OLAP Analysis} \longrightarrow \text{BI Reporting}$$
-* **Architecture Tracks:**
-  * **Track 1 (University Submission Default):** Zero-cost local execution stack:
-    * **Database & Engine:** PostgreSQL 16+ (`localhost:5432`, `dwbi_power_grid`).
-    * **Schemas:** `project_staging`, `quarantine`, `project_dw`, `project_reporting`.
-    * **ETL & Data Engineering:** Python 3.10+ (Pandas, openpyxl, requests, psycopg2).
-    * **Visualization & BI:** Microsoft Power BI Desktop (`PowerBI.pbix` connecting to `localhost:5432`).
-    * **Design & Schemas:** Draw.io (architecture diagram), GitHub (code repository).
-  * **Track 2 (Modern Cloud Lakehouse Extension):** Databricks Serverless Compute + Delta Lake + Unity Catalog (`dwbi_catalog`) + Power BI DirectQuery. Detailed in [`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md).
+* **Architecture:** **Databricks Serverless Cloud Lakehouse**
+  * **Platform & Compute:** Databricks Serverless Notebook Compute (Photon Engine) + Databricks Serverless SQL Warehouse.
+  * **Storage & Table Format:** Delta Lake (`USING DELTA`) with ACID transactions, time-travel, and Liquid Clustering.
+  * **Governance & Catalog:** Unity Catalog 3-tier namespace (**`dwbi_catalog`**): `bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`.
+  * **ETL & Data Engineering:** PySpark & Databricks SQL (Delta `MERGE INTO` for SCD Type 1 & Type 2).
+  * **Visualization & BI:** Microsoft Power BI Desktop (`PowerBI.pbix` connecting via Native Databricks DirectQuery).
+  * **Full Architecture Guide:** [`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md).
 
 ### 1.2 Alignment with Official Course Architecture
 The course syllabus provides a conceptual retail example ("CampusCart") and an architecture flowchart (`Sample Project Architecture Diagram.png`). This project **replaces the toy retail data with a real-world industrial and climate dataset**, while maintaining an exact **1-to-1 structural mapping** across all 11 architectural components:
@@ -50,8 +49,8 @@ The course syllabus provides a conceptual retail example ("CampusCart") and an a
 │ 6  │ Dimensional Data Warehouse  │ Kimball Star Schema: 3 Fact types (Transactional,   │
 │    │                             │ Periodic Snapshot, Factless) + Conformed Dimensions │
 ├────┼─────────────────────────────┼─────────────────────────────────────────────────────┤
-│ 7  │ Warehouse Performance       │ PostgreSQL declarative table partitioning by month, │
-│    │                             │ B-Tree indexes on FKs/dates, EXPLAIN ANALYZE tests  │
+│ 7  │ Warehouse Performance       │ Delta Lake Liquid Clustering (`CLUSTER BY`),        │
+│    │                             │ Photon vectorization, and data skipping             │
 ├────┼─────────────────────────────┼─────────────────────────────────────────────────────┤
 │ 8  │ Gold Layer (Data Marts)     │ Materialized Views: Emissions Intensity Mart, Heat  │
 │    │                             │ Rate Anomaly Mart, Regional Grid Stress Mart        │
@@ -97,7 +96,7 @@ The pipeline must defensively handle the following verified upstream anomalies:
 ### 3.2 String Sentinels in Numeric Columns
 * **EIA-923:** Missing numeric values in columns like `Quantity\nJanuary` and `Nuclear Unit Id` are populated with literal strings like `"."` and `"NM"` (Not Meaningful).
 * **NOAA Weather Feeds:** Missing sensor measurements are hardcoded as integer **`-9999`**. Single-character quality flags (`QFLAG` = `Z`, `T`) are directly appended to numbers without delimiters.
-* **Pipeline Requirement:** Data type coercion must replace `"."`, `"NM"`, and `-9999` with SQL `NULL` and extract flags into separate quality-indicator fields before inserting into typed PostgreSQL columns.
+* **Pipeline Requirement:** Data type coercion must replace `"."`, `"NM"`, and `-9999` with SQL `NULL` and extract flags into separate quality-indicator fields before inserting into typed Delta Lake columns.
 
 ### 3.3 Negative Net Generation (Station Service Outages)
 * **Empirical Fact:** In EIA-923 January 2023 data alone, **41 plants reported negative net generation** (e.g., Plant 26 `E C Gaston` reported `-3,555.565 MWh`; Plant 30 `Madelia` reported `-12.78 MWh`).
@@ -191,7 +190,7 @@ $$\text{Heat Rate } (\text{Btu}/\text{kWh}) = \frac{\text{Fuel Consumed } (\text
 Rather than applying a universal Carnot limit, the Data Quality Engine applies **technology-specific physical thresholds**:
 
 ```sql
--- PostgreSQL Data Quality Validation Logic
+-- Databricks SQL Data Quality Validation Logic
 CASE 
     -- Combined Cycle Gas Turbine (CCGT): High efficiency (55% - 63%)
     WHEN prime_mover_code IN ('CA', 'CT', 'CS', 'CC') AND (heat_rate < 5000 OR heat_rate > 14000)
@@ -281,7 +280,7 @@ DWBI-Final-Project/
 │
 ├── 06_Dashboard/
 │   ├── README.md                     # 3-Page Power BI specification & connection guide
-│   └── PowerBI.pbix                  # Interactive Power BI report connected to PostgreSQL / Databricks
+│   └── PowerBI.pbix                  # Interactive Power BI report connected to Databricks DirectQuery
 │
 └── scripts/
     ├── build_team_docs.py            # Generator script for Team Onboarding Word guides
@@ -290,146 +289,183 @@ DWBI-Final-Project/
 
 ---
 
-## 7. PostgreSQL DDL Reference Specification
+## 7. Databricks Unity Catalog & Delta Lake DDL Specification
 
-### 7.1 Staging & Quarantine Layer
+All tables and schemas are created inside the **`dwbi_catalog`** Unity Catalog container.
+
+### 7.1 Catalog, Schemas & Quarantine Layer
 ```sql
-CREATE SCHEMA IF NOT EXISTS project_staging;
+-- 1. Create Catalog & Schemas
+CREATE CATALOG IF NOT EXISTS dwbi_catalog;
+USE CATALOG dwbi_catalog;
+
+CREATE SCHEMA IF NOT EXISTS bronze_staging;
+CREATE SCHEMA IF NOT EXISTS silver_conformed;
+CREATE SCHEMA IF NOT EXISTS gold_warehouse;
+CREATE SCHEMA IF NOT EXISTS gold_marts;
 CREATE SCHEMA IF NOT EXISTS quarantine;
-CREATE SCHEMA IF NOT EXISTS project_dw;
-CREATE SCHEMA IF NOT EXISTS project_reporting;
 
--- Dead-Letter Quarantine Table
-CREATE TABLE quarantine.rejected_records (
-    rejection_id         BIGSERIAL PRIMARY KEY,
-    source_system        VARCHAR(50) NOT NULL,
-    source_table         VARCHAR(100) NOT NULL,
-    source_row_identifier VARCHAR(100),
-    rejection_reason     VARCHAR(255) NOT NULL,
-    raw_payload_json     JSONB NOT NULL,
-    batch_id             UUID NOT NULL,
-    rejected_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- 2. Raw File Landing Volume
+CREATE VOLUME IF NOT EXISTS bronze_staging.raw_landing;
 
--- ETL Pipeline Audit Log
-CREATE TABLE project_staging.etl_run_log (
-    run_id               BIGSERIAL PRIMARY KEY,
-    batch_id             UUID NOT NULL,
-    pipeline_step        VARCHAR(100) NOT NULL,
-    source_system        VARCHAR(50) NOT NULL,
-    records_read         INTEGER DEFAULT 0,
-    records_inserted     INTEGER DEFAULT 0,
-    records_updated      INTEGER DEFAULT 0,
-    records_rejected     INTEGER DEFAULT 0,
-    execution_status     VARCHAR(30) NOT NULL,
-    start_time           TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    end_time             TIMESTAMP WITH TIME ZONE,
-    error_message        TEXT
-);
+-- 3. Dead-Letter Quarantine Table (Delta)
+CREATE TABLE IF NOT EXISTS quarantine.rejected_records (
+    rejection_id         BIGINT GENERATED ALWAYS AS IDENTITY,
+    batch_id             STRING NOT NULL,
+    source_system        STRING NOT NULL,
+    source_table         STRING NOT NULL,
+    source_row_identifier STRING,
+    rejection_reason     STRING NOT NULL,
+    raw_payload_json     STRING NOT NULL,
+    rejected_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+) USING DELTA;
+
+-- 4. ETL Pipeline Audit Log (Delta)
+CREATE TABLE IF NOT EXISTS bronze_staging.etl_run_log (
+    run_id               BIGINT GENERATED ALWAYS AS IDENTITY,
+    batch_id             STRING NOT NULL,
+    pipeline_step        STRING NOT NULL,
+    source_system        STRING NOT NULL,
+    records_read         INT DEFAULT 0,
+    records_inserted     INT DEFAULT 0,
+    records_updated      INT DEFAULT 0,
+    records_rejected     INT DEFAULT 0,
+    execution_status     STRING NOT NULL, -- 'RUNNING', 'COMPLETED', 'FAILED'
+    start_time           TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    end_time             TIMESTAMP,
+    error_message        STRING
+) USING DELTA;
 ```
 
-### 7.2 Conformed Dimensions (with SCD Type 2)
+### 7.2 Conformed Dimensions in `gold_warehouse` (with SCD Type 2)
 ```sql
+USE CATALOG dwbi_catalog;
+
 -- Dim_Date
-CREATE TABLE project_dw.dim_date (
-    date_key             INTEGER PRIMARY KEY, -- YYYYMMDD
-    calendar_date        DATE NOT NULL UNIQUE,
-    calendar_year        SMALLINT NOT NULL,
-    calendar_quarter     SMALLINT NOT NULL,
-    calendar_month       SMALLINT NOT NULL,
-    month_name           VARCHAR(15) NOT NULL,
-    day_of_month         SMALLINT NOT NULL,
-    day_of_week          SMALLINT NOT NULL,
-    day_name             VARCHAR(15) NOT NULL,
-    is_weekend           BOOLEAN NOT NULL
-);
+CREATE TABLE IF NOT EXISTS gold_warehouse.dim_date (
+    date_key             INT NOT NULL, -- YYYYMMDD
+    calendar_date        DATE NOT NULL,
+    calendar_year        INT NOT NULL,
+    calendar_quarter     INT NOT NULL,
+    calendar_month       INT NOT NULL,
+    month_name           STRING NOT NULL,
+    day_of_month         INT NOT NULL,
+    day_of_week          INT NOT NULL,
+    day_name             STRING NOT NULL,
+    is_weekend           BOOLEAN NOT NULL,
+    CONSTRAINT pk_dim_date PRIMARY KEY (date_key)
+) USING DELTA;
 
 -- Dim_Plant
-CREATE TABLE project_dw.dim_plant (
-    plant_key            SERIAL PRIMARY KEY,
-    orispl_code          INTEGER NOT NULL UNIQUE,
-    plant_name           VARCHAR(150) NOT NULL,
-    utility_id           INTEGER,
-    utility_name         VARCHAR(150),
-    latitude             NUMERIC(9, 6),
-    longitude            NUMERIC(9, 6),
-    state_code           CHAR(2) NOT NULL,
-    county_name          VARCHAR(100),
-    balancing_auth_code  VARCHAR(20),
-    epa_region           SMALLINT,
+CREATE TABLE IF NOT EXISTS gold_warehouse.dim_plant (
+    plant_key            BIGINT GENERATED ALWAYS AS IDENTITY,
+    orispl_code          INT NOT NULL, -- Natural Key
+    plant_name           STRING NOT NULL,
+    utility_id           INT,
+    utility_name         STRING,
+    latitude             DECIMAL(9, 6),
+    longitude            DECIMAL(9, 6),
+    state_code           STRING NOT NULL,
+    county_name          STRING,
+    balancing_auth_code  STRING,
+    epa_region           INT,
     is_combined_heat_power BOOLEAN DEFAULT FALSE,
-    created_at           TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    CONSTRAINT pk_dim_plant PRIMARY KEY (plant_key)
+) USING DELTA;
 
--- Dim_Generator (SCD Type 2)
-CREATE TABLE project_dw.dim_generator (
-    generator_key        SERIAL PRIMARY KEY,
-    orispl_code          INTEGER NOT NULL,
-    generator_id         VARCHAR(20) NOT NULL,
-    prime_mover_code     VARCHAR(10) NOT NULL,
-    primary_energy_source VARCHAR(10) NOT NULL,
-    nameplate_capacity_mw NUMERIC(10, 2),
-    operating_status     VARCHAR(30) NOT NULL, -- OP, SB, OA, RE
-    row_effective_date   DATE NOT NULL,
-    row_expiration_date  DATE NOT NULL DEFAULT '9999-12-31',
+-- Dim_Generator (SCD Type 2: Unit Operating Status & Capacity Evolution)
+CREATE TABLE IF NOT EXISTS gold_warehouse.dim_generator (
+    generator_key        BIGINT GENERATED ALWAYS AS IDENTITY,
+    orispl_code          INT NOT NULL,
+    generator_id         STRING NOT NULL,
+    prime_mover_code     STRING NOT NULL,
+    primary_energy_source STRING NOT NULL,
+    nameplate_capacity_mw DECIMAL(10, 2),
+    operating_status     STRING NOT NULL, -- OP (Operating), SB (Standby), RE (Retired)
+    valid_from           TIMESTAMP NOT NULL,
+    valid_to             TIMESTAMP DEFAULT TIMESTAMP('9999-12-31 23:59:59'),
     is_current           BOOLEAN NOT NULL DEFAULT TRUE,
-    FOREIGN KEY (orispl_code) REFERENCES project_dw.dim_plant(orispl_code)
-);
-CREATE INDEX idx_dim_gen_lookup ON project_dw.dim_generator(orispl_code, generator_id, is_current);
+    CONSTRAINT pk_dim_generator PRIMARY KEY (generator_key)
+) USING DELTA;
+
+-- Dim_Balancing_Authority (Regional Grid Operators)
+CREATE TABLE IF NOT EXISTS gold_warehouse.dim_balancing_authority (
+    ba_key               BIGINT GENERATED ALWAYS AS IDENTITY,
+    ba_code              STRING NOT NULL, -- Natural Key
+    ba_name              STRING NOT NULL,
+    region               STRING,
+    is_active            BOOLEAN DEFAULT TRUE,
+    CONSTRAINT pk_dim_ba PRIMARY KEY (ba_key)
+) USING DELTA;
+
+-- Dim_Weather_Station
+CREATE TABLE IF NOT EXISTS gold_warehouse.dim_weather_station (
+    station_key          BIGINT GENERATED ALWAYS AS IDENTITY,
+    station_id           STRING NOT NULL, -- Natural Key
+    station_name         STRING,
+    state_code           STRING,
+    latitude             DECIMAL(9, 6),
+    longitude            DECIMAL(9, 6),
+    elevation_m          DECIMAL(7, 2),
+    CONSTRAINT pk_dim_station PRIMARY KEY (station_key)
+) USING DELTA;
 ```
 
-### 7.3 Fact Tables (Transactional, Periodic Snapshot & Grid Aggregate)
+### 7.3 Multi-Grain Fact Tables with Liquid Clustering
 ```sql
--- Transactional Fact: Hourly Smokestack Emissions & Weather (Partitioned by Month)
-CREATE TABLE project_dw.fact_hourly_emissions_weather (
-    date_key             INTEGER NOT NULL,
-    hour_of_day          SMALLINT NOT NULL,
-    plant_key            INTEGER NOT NULL,
-    unit_id              VARCHAR(20) NOT NULL,
-    station_id           VARCHAR(20),
-    gross_load_mw        NUMERIC(10, 2),
-    heat_input_mmbtu     NUMERIC(12, 3),
-    so2_mass_lbs         NUMERIC(12, 3),
-    nox_mass_lbs         NUMERIC(12, 3),
-    co2_mass_tons        NUMERIC(12, 3),
-    ambient_temp_celsius NUMERIC(5, 2),
-    wind_speed_mps       NUMERIC(5, 2),
-    weather_distance_km  NUMERIC(6, 2),
-    PRIMARY KEY (date_key, hour_of_day, plant_key, unit_id)
-) PARTITION BY RANGE (date_key);
+USE CATALOG dwbi_catalog;
+
+-- Transactional Fact: Hourly Smokestack Emissions & Weather Observations
+CREATE TABLE IF NOT EXISTS gold_warehouse.fact_hourly_emissions_weather (
+    date_key             INT NOT NULL,
+    hour_of_day          INT NOT NULL,
+    plant_key            BIGINT NOT NULL,
+    unit_id              STRING NOT NULL,
+    station_key          BIGINT,
+    gross_load_mw        DECIMAL(10, 2),
+    heat_input_mmbtu     DECIMAL(12, 3),
+    so2_mass_lbs         DECIMAL(12, 3),
+    nox_mass_lbs         DECIMAL(12, 3),
+    co2_mass_tons        DECIMAL(12, 3),
+    ambient_temp_celsius DECIMAL(5, 2),
+    wind_speed_mps       DECIMAL(5, 2),
+    weather_distance_km  DECIMAL(6, 2)
+) USING DELTA
+CLUSTER BY (date_key, plant_key);
 
 -- Periodic Snapshot Fact: Monthly Plant Fuel Consumption & Net Generation
-CREATE TABLE project_dw.fact_monthly_plant_operations (
-    snapshot_key         SERIAL PRIMARY KEY,
-    month_start_date_key INTEGER NOT NULL,
-    plant_key            INTEGER NOT NULL,
-    prime_mover_code     VARCHAR(10) NOT NULL,
-    energy_source_code   VARCHAR(10) NOT NULL,
-    net_generation_mwh   NUMERIC(14, 3) NOT NULL, -- Can be negative during station outages
-    fuel_consumed_physical NUMERIC(14, 3),
-    fuel_consumed_mmbtu  NUMERIC(14, 3),
-    avg_heat_rate_btu_kwh NUMERIC(10, 2),
-    delivered_fuel_cost_per_mmbtu NUMERIC(8, 2),
-    ending_fuel_stock_physical NUMERIC(14, 3),
-    FOREIGN KEY (plant_key) REFERENCES project_dw.dim_plant(plant_key)
-);
+CREATE TABLE IF NOT EXISTS gold_warehouse.fact_monthly_plant_operations (
+    snapshot_key         BIGINT GENERATED ALWAYS AS IDENTITY,
+    month_start_date_key INT NOT NULL,
+    plant_key            BIGINT NOT NULL,
+    prime_mover_code     STRING NOT NULL,
+    energy_source_code   STRING NOT NULL,
+    net_generation_mwh   DECIMAL(14, 3) NOT NULL, -- May be negative during plant outages
+    fuel_consumed_physical DECIMAL(14, 3),
+    fuel_consumed_mmbtu  DECIMAL(14, 3),
+    avg_heat_rate_btu_kwh DECIMAL(10, 2),
+    delivered_fuel_cost_per_mmbtu DECIMAL(8, 2),
+    ending_fuel_stock_physical DECIMAL(14, 3)
+) USING DELTA
+CLUSTER BY (month_start_date_key, plant_key);
 
 -- Aggregate Grid Fact: Hourly Balancing Authority Telemetry
-CREATE TABLE project_dw.fact_regional_grid_demand (
-    date_key             INTEGER NOT NULL,
-    hour_of_day          SMALLINT NOT NULL,
-    balancing_auth_code  VARCHAR(20) NOT NULL,
-    demand_mw            NUMERIC(12, 2),
-    demand_forecast_mw   NUMERIC(12, 2),
-    net_gen_coal_mw      NUMERIC(12, 2),
-    net_gen_gas_mw       NUMERIC(12, 2),
-    net_gen_nuclear_mw   NUMERIC(12, 2),
-    net_gen_hydro_mw     NUMERIC(12, 2),
-    net_gen_wind_mw      NUMERIC(12, 2),
-    net_gen_solar_mw     NUMERIC(12, 2),
-    net_interchange_mw   NUMERIC(12, 2),
-    PRIMARY KEY (date_key, hour_of_day, balancing_auth_code)
-);
+CREATE TABLE IF NOT EXISTS gold_warehouse.fact_regional_grid_demand (
+    date_key             INT NOT NULL,
+    hour_of_day          INT NOT NULL,
+    ba_key               BIGINT NOT NULL,
+    demand_mw            DECIMAL(12, 2),
+    demand_forecast_mw   DECIMAL(12, 2),
+    net_gen_coal_mw      DECIMAL(12, 2),
+    net_gen_gas_mw       DECIMAL(12, 2),
+    net_gen_nuclear_mw   DECIMAL(12, 2),
+    net_gen_hydro_mw     DECIMAL(12, 2),
+    net_gen_wind_mw      DECIMAL(12, 2),
+    net_gen_solar_mw     DECIMAL(12, 2),
+    net_interchange_mw   DECIMAL(12, 2)
+) USING DELTA
+CLUSTER BY (date_key, ba_key);
 ```
 
 ---
@@ -438,23 +474,23 @@ CREATE TABLE project_dw.fact_regional_grid_demand (
 
 ### 8.1 Multi-Dimensional OLAP Cube
 ```sql
--- OLAP.sql: Aggregating Monthly Generation by Geography and Fuel Source
+-- Aggregating Monthly Generation by Geography and Fuel Source
 SELECT 
     d.calendar_year,
     p.state_code,
     f.energy_source_code,
     SUM(f.net_generation_mwh) AS total_net_mwh,
     ROUND(AVG(f.avg_heat_rate_btu_kwh), 2) AS weighted_heat_rate
-FROM project_dw.fact_monthly_plant_operations f
-JOIN project_dw.dim_plant p ON f.plant_key = p.plant_key
-JOIN project_dw.dim_date d ON f.month_start_date_key = d.date_key
+FROM dwbi_catalog.gold_warehouse.fact_monthly_plant_operations f
+JOIN dwbi_catalog.gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
+JOIN dwbi_catalog.gold_warehouse.dim_date d ON f.month_start_date_key = d.date_key
 GROUP BY CUBE (d.calendar_year, p.state_code, f.energy_source_code)
 ORDER BY d.calendar_year, p.state_code, f.energy_source_code;
 ```
 
 ### 8.2 Moving Window Function (Emissions vs. Temperature Sensitivity)
 ```sql
--- Views.sql: 7-Day Moving Average Heat Rate & Peak Temperature Impact
+-- 7-Day Moving Average Heat Rate & Peak Temperature Impact
 SELECT 
     f.plant_key,
     p.plant_name,
@@ -468,8 +504,8 @@ SELECT
         ORDER BY f.date_key 
         ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
     ) AS moving_7day_co2_intensity
-FROM project_dw.fact_hourly_emissions_weather f
-JOIN project_dw.dim_plant p ON f.plant_key = p.plant_key
+FROM dwbi_catalog.gold_warehouse.fact_hourly_emissions_weather f
+JOIN dwbi_catalog.gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
 GROUP BY f.plant_key, p.plant_name, f.date_key;
 ```
 
@@ -479,14 +515,13 @@ GROUP BY f.plant_key, p.plant_name, f.date_key;
 
 Whenever a new AI session or development sprint begins, execute the following startup sequence:
 
-1. **Verify Local Environment:**
-   * Run `python --version` (requires Python 3.10+; current system has Python 3.14).
-   * Confirm PostgreSQL service is active on `localhost:5432`.
+1. **Verify Cloud Lakehouse Environment:**
+   * Target Platform: Databricks Serverless Compute + Serverless SQL Warehouse.
+   * Target Unity Catalog: `dwbi_catalog`.
 2. **Review Binding Directives & Ground Truths:**
    * Read [`.agents`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/.agents) for strict file access and execution directives.
-   * Read [`01_Project_Documentation/course_requirements/`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/course_requirements/) for university grading rubrics and schema mandates.
-   * Reference [PROJECT_BLUEPRINT.md](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md) as the ground truth for local Kimball PostgreSQL implementation.
-   * Reference [DATABRICKS_SERVERLESS_ARCHITECTURE.md](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md) for the cloud lakehouse implementation.
+   * Read [`01_Project_Documentation/course_requirements/`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/course_requirements/) for university grading rubrics.
+   * Reference [`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md) and [`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md) as the ground truth.
    * Maintain the required folder layout matching Section 6.
 3. **Do Not Hallucinate Simplifications:**
    * Never read `01_Project_Documentation/research/` or `01_Project_Documentation/Team_Guides/`.

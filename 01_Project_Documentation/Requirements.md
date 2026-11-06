@@ -27,11 +27,12 @@
 
 *Collaboration Model:* Cross-functional agile collaboration. All members participate equally and flexibly across all data engineering, dimensional modeling, data quality, OLAP, and Power BI reporting tasks without rigid role boundaries.
 
-## 3. Technology Stack (Zero-Cost Local Architecture)
-* **Database & Engine:** PostgreSQL 16+ on `localhost:5432` (Schemas: `project_staging`, `quarantine`, `project_dw`, `project_reporting`).
-* **ETL & Data Engineering:** Python 3.10+ (`pandas`, `openpyxl`, `requests`, `psycopg2`).
-* **Visualization & BI:** Microsoft Power BI Desktop (`PowerBI.pbix`).
-* **Modeling & Design:** Draw.io & Markdown.
+## 3. Technology Stack (Databricks Serverless Cloud Lakehouse)
+* **Lakehouse Platform:** Databricks Serverless Compute (Photon Engine) + Databricks SQL Warehouse.
+* **Storage & Governance:** Delta Lake + Unity Catalog (`dwbi_catalog` schemas: `bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`).
+* **ETL & Data Engineering:** Apache Spark / PySpark & Databricks SQL (Delta `MERGE INTO`).
+* **Visualization & BI:** Microsoft Power BI Desktop (`PowerBI.pbix` via Native Databricks DirectQuery).
+* **Modeling & Architecture:** Draw.io & Markdown.
 
 ## 4. Summary of Data Sources
 * **EIA-860:** Generator asset inventory and boiler-generator environmental associations.

@@ -1,7 +1,10 @@
 -- ==============================================================================
 -- DL3004 DWBI Final Project: Data Quality & Quarantine Validation Rules
--- Target Engine: PostgreSQL 14+
+-- Platform: Databricks Serverless Compute / Databricks SQL Warehouse
+-- Catalog: dwbi_catalog
 -- ==============================================================================
+
+USE CATALOG dwbi_catalog;
 
 -- ------------------------------------------------------------------------------
 -- 1. QUARANTINE SENTINELS & UNPARSEABLE STRINGS FROM EIA-923
@@ -18,11 +21,11 @@ INSERT INTO quarantine.rejected_records (
 SELECT 
     batch_id,
     'EIA-923',
-    'project_staging.raw_eia923_monthly_generation',
+    'dwbi_catalog.bronze_staging.raw_eia923_monthly_generation',
     plant_id,
     'NUMERIC_FIELD_CONTAINS_STRING_SENTINEL',
-    row_to_json(r)::jsonb
-FROM project_staging.raw_eia923_monthly_generation r
+    to_json(named_struct('plant_id', plant_id, 'quantity_january', quantity_january, 'netgen_january', netgen_january))
+FROM bronze_staging.raw_eia923_monthly_generation
 WHERE TRIM(quantity_january) IN ('.', 'NM', '*', '')
    OR TRIM(netgen_january) IN ('.', 'NM', '*', '');
 
@@ -40,11 +43,11 @@ INSERT INTO quarantine.rejected_records (
 SELECT 
     batch_id,
     'NOAA-ISD',
-    'project_staging.raw_noaa_isd_weather',
-    station_id || '_' || timestamp_utc,
+    'dwbi_catalog.bronze_staging.raw_noaa_isd_weather',
+    CONCAT(station_id, '_', timestamp_utc),
     'NOAA_SENTINEL_SENSOR_DROPOUT',
-    row_to_json(w)::jsonb
-FROM project_staging.raw_noaa_isd_weather w
+    to_json(named_struct('station_id', station_id, 'timestamp_utc', timestamp_utc, 'air_temp', air_temperature_c, 'wind_speed', wind_speed_mps))
+FROM bronze_staging.raw_noaa_isd_weather
 WHERE air_temperature_c = '-9999'
    OR wind_speed_mps = '-9999';
 
@@ -62,10 +65,10 @@ INSERT INTO quarantine.rejected_records (
     raw_payload_json
 )
 SELECT 
-    uuid_generate_v4(),
+    uuid(),
     'EIA-923-CALCULATED',
-    'project_dw.fact_monthly_plant_operations',
-    f.plant_key::text,
+    'dwbi_catalog.gold_warehouse.fact_monthly_plant_operations',
+    CAST(f.plant_key AS STRING),
     CASE 
         WHEN f.prime_mover_code IN ('CA', 'CT', 'CS', 'CC') AND (f.avg_heat_rate_btu_kwh < 5000 OR f.avg_heat_rate_btu_kwh > 14000)
             THEN 'CCGT_HEAT_RATE_OUT_OF_BOUNDS'
@@ -74,9 +77,8 @@ SELECT
         WHEN f.prime_mover_code = 'GT' AND (f.avg_heat_rate_btu_kwh < 9000 OR f.avg_heat_rate_btu_kwh > 22000)
             THEN 'PEAKER_GT_HEAT_RATE_OUT_OF_BOUNDS'
     END,
-    row_to_json(f)::jsonb
-FROM project_dw.fact_monthly_plant_operations f
+    to_json(named_struct('plant_key', f.plant_key, 'prime_mover', f.prime_mover_code, 'heat_rate', f.avg_heat_rate_btu_kwh))
+FROM gold_warehouse.fact_monthly_plant_operations f
 WHERE (f.prime_mover_code IN ('CA', 'CT', 'CS', 'CC') AND (f.avg_heat_rate_btu_kwh < 5000 OR f.avg_heat_rate_btu_kwh > 14000))
    OR (f.prime_mover_code = 'ST' AND (f.avg_heat_rate_btu_kwh < 8500 OR f.avg_heat_rate_btu_kwh > 18000))
    OR (f.prime_mover_code = 'GT' AND (f.avg_heat_rate_btu_kwh < 9000 OR f.avg_heat_rate_btu_kwh > 22000));
-
