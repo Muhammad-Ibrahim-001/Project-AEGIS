@@ -21,15 +21,13 @@ These three primary deliverables match the exact university repository layout:
 
 ### 2. Architectural Diagrams & Design Sources
 * **[`Architecture.pdf`](Architecture.pdf) / [`Architecture.png`](Architecture.png)**: Visual 8-stage / 11-stage end-to-end pipeline architecture.
-* **[`Schema.png`](Schema.png) / [`Schema.jpg`](Schema.jpg)**: High-resolution raster renders of the dimensional model.
+* **[`Schema.pdf`](Schema.pdf) / [`Schema.png`](Schema.png)**: Visual Kimball Star Schema blueprint and raster export.
 * **[`schema_diagram_mermaid.md`](schema_diagram_mermaid.md)**: Verified Mermaid ERD code blocks for Draw.io (`app.diagrams.net`).
 * **[`Requirements.md`](Requirements.md)**: Markdown summary linking to the formal Phase 1 proposal and deliverables in `Phase_1_Submission/`.
 
 ### 3. Subdirectories
 * **[`course_requirements/`](course_requirements/) — ⚠️ MANDATORY REFERENCE:**  
   Official university syllabus, phase grading rubrics (`DWBI Lab Phase 2.pdf`, `DWBI Lab Phase 3.pdf`), and reference architecture diagram. **All code and schema implementations must adhere strictly to these rubrics.**
-* **[`research/`](research/) — ⚠️ ARCHIVED HISTORICAL DATA:**  
-  Phase 1 exploratory research notes and dataset evaluations. Kept for grading appendices; agents must not read or parse this folder.
 * **[`Team_Guides/`](Team_Guides/) — 👥 HUMAN ONBOARDING ONLY:**  
   Formatted Microsoft Word guides (`.docx`) detailing the 4-person work packages (WP1–WP4) for human team members.
 

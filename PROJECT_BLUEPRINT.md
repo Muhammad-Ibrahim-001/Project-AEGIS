@@ -242,12 +242,11 @@ DWBI-Final-Project/
 │   ├── Schema.pdf                    # Official course submission: Visual Star Schema diagram
 │   ├── Data_Dictionary.xlsx          # Official course submission: Complete 7-tab data catalog
 │   ├── Architecture.pdf / .png       # High-resolution pipeline architecture diagram
-│   ├── Schema.jpg / .png             # High-resolution Star Schema raster diagrams
+│   ├── Schema.png                    # High-resolution Star Schema raster diagram
 │   ├── schema_diagram_mermaid.md     # Verified Mermaid code for Draw.io diagram rendering
 │   ├── Requirements.md               # Markdown summary linking to Phase 1 documents
 │   ├── README.md                     # Documentation folder index and guidelines
 │   ├── course_requirements/          # ⚠️ MANDATORY: University syllabus, rubrics, architecture
-│   ├── research/                     # ⛔ ARCHIVED: Exploratory notes (DO NOT PARSE)
 │   └── Team_Guides/                  # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
 │
 ├── Phase_1_Submission/               # Complete formal academic Phase 1 package
@@ -268,23 +267,19 @@ DWBI-Final-Project/
 │   └── cleaned_data/                 # Sample cleaned CSV outputs from Silver processing
 │
 ├── 03_ETL/
-│   ├── staging.sql                   # DDL creating staging (project_staging) & quarantine tables
+│   ├── staging.sql                   # DDL creating staging & quarantine tables (Delta Lake)
 │   └── quality_checks.sql            # DQ rules routing invalid records to quarantine
 │
 ├── 04_Data_Warehouse/
-│   └── warehouse.sql                 # Production DDL for Star Schema (project_dw Tables, PKs, FKs)
+│   └── warehouse.sql                 # Production DDL for Star Schema (Delta Lake with Liquid Clustering)
 │
 ├── 05_Analytics/
 │   ├── OLAP.sql                      # Multi-dimensional aggregations (ROLLUP, CUBE)
-│   └── Views.sql                     # Gold Layer Materialized Views (project_reporting)
+│   └── Views.sql                     # Gold Layer Materialized Views (dwbi_catalog.gold_marts)
 │
-├── 06_Dashboard/
-│   ├── README.md                     # 3-Page Power BI specification & connection guide
-│   └── PowerBI.pbix                  # Interactive Power BI report connected to Databricks DirectQuery
-│
-└── scripts/
-    ├── build_team_docs.py            # Generator script for Team Onboarding Word guides
-    └── archive/                      # Historical/scratch utility scripts
+└── 06_Dashboard/
+    ├── README.md                     # 3-Page Power BI specification & connection guide
+    └── PowerBI.pbix                  # Interactive Power BI report connected to Databricks DirectQuery
 ```
 
 ---

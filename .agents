@@ -13,11 +13,10 @@ operating within this workspace.
 ## 1. MANDATORY FILE ACCESS RULES
 
 ### 1.1 NEVER READ (STRICTLY PROHIBITED)
-Agents must NEVER scan, parse, or read files in the following directories:
-* ⛔ `01_Project_Documentation/research/`
-  * **Reason:** Contains archived Phase 1 exploratory notes, legacy dataset evaluations, and brainstormed architectures. Reading these files wastes token context, introduces obsolete assumptions, and pollutes reasoning with superseded ideas.
+Agents must NEVER scan, parse, or read files in the following directory:
 * ⛔ `01_Project_Documentation/Team_Guides/`
   * **Reason:** Contains binary Microsoft Word onboarding documents (`.docx`) and scripts intended exclusively for human team coordination. Parsing these files is unnecessary and unhelpful for coding or analysis tasks.
+*(Note: Obsolete exploratory research notes in `01_Project_Documentation/research/` have been permanently purged from the repository).*
 
 ### 1.2 ALWAYS READ (MANDATORY GROUND TRUTH)
 Before proposing, generating, or modifying any code, schema, query, or report, agents must ALWAYS read and verify compliance against:

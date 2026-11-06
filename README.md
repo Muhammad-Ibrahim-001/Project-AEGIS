@@ -2,10 +2,9 @@
 
 > **🤖 AI AGENT OPERATIONAL DIRECTIVE:**  
 > Before modifying or generating code, schemas, or analytics, **review [`.agents`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/.agents)** and follow these core rules:  
-> 1. **DO NOT scan or parse files inside `01_Project_Documentation/research/`** (archived Phase 1 exploratory notes).  
-> 2. **DO NOT parse files inside `01_Project_Documentation/Team_Guides/`** (binary `.docx` human onboarding guides).  
-> 3. **ALWAYS read and comply with `01_Project_Documentation/course_requirements/`** (official university grading rubrics).  
-> 4. Architecture Ground Truth: The project is implemented exclusively on the **Databricks Serverless Cloud Lakehouse** governed under Unity Catalog (`dwbi_catalog`). Refer to **[`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md)** and **[`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md)**.
+> 1. **DO NOT parse files inside `01_Project_Documentation/Team_Guides/`** (binary `.docx` human onboarding guides).  
+> 2. **ALWAYS read and comply with `01_Project_Documentation/course_requirements/`** (official university grading rubrics).  
+> 3. Architecture Ground Truth: The project is implemented exclusively on the **Databricks Serverless Cloud Lakehouse** governed under Unity Catalog (`dwbi_catalog`). Refer to **[`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md)** and **[`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md)**.
 
 ---
 
@@ -85,12 +84,11 @@ DWBI-Final-Project/
 │   ├── Schema.pdf                    # Official university submission: Visual Star Schema diagram
 │   ├── Data_Dictionary.xlsx          # Official university submission: Complete 7-tab data catalog
 │   ├── Architecture.pdf / .png       # High-resolution pipeline architecture diagram
-│   ├── Schema.jpg / .png             # High-resolution Star Schema raster diagrams
+│   ├── Schema.png                    # High-resolution Star Schema raster diagram
 │   ├── schema_diagram_mermaid.md     # Verified Mermaid code for Draw.io diagram rendering
 │   ├── Requirements.md               # Markdown summary linking to Phase 1 documents
 │   ├── README.md                     # Documentation folder index and guidelines
 │   ├── course_requirements/          # ⚠️ MANDATORY: University syllabus, rubrics, architecture
-│   ├── research/                     # ⛔ ARCHIVED: Exploratory notes (DO NOT PARSE)
 │   └── Team_Guides/                  # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
 │
 ├── Phase_1_Submission/               # Complete formal academic Phase 1 package
@@ -119,13 +117,9 @@ DWBI-Final-Project/
 │   ├── OLAP.sql                      # Multi-dimensional aggregations (ROLLUP, CUBE, Windowing)
 │   └── Views.sql                     # Gold Layer Materialized Views for Power BI DirectQuery
 │
-├── 06_Dashboard/
-│   ├── README.md                     # 3-Page Power BI report design & Databricks connection guide
-│   └── PowerBI.pbix                  # Interactive Power BI report
-│
-└── scripts/
-    ├── build_team_docs.py            # Automated builder for Team Onboarding Word guides
-    └── archive/                      # Preserved utility & scratch scripts
+└── 06_Dashboard/
+    ├── README.md                     # 3-Page Power BI report design & Databricks connection guide
+    └── PowerBI.pbix                  # Interactive Power BI report
 ```
 
 ---
