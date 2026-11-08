@@ -3,12 +3,20 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Environments
+# Environments & Credentials
 .env
-.venv
+.env.*
+.venv*
+.venv-dbx/
 env/
 venv/
 ENV/
+.databrickscfg
+*.token
+*.pem
+*.key
+credentials.json
+
 
 # Microsoft Office temporary files
 ~$*.docx
