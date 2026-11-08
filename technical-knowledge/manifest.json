@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "last_verified": "MANUAL_REBASELINE",
+  "summary_file": "technical-knowledge/SESSION_CONTEXT.md",
+  "description": "SHA-256 integrity manifest for Layer 2 authoritative knowledge documents. Verifies byte-level file changes without loading full document contents into model context during routine integrity checks. Does not verify semantic correctness.",
+  "documents": {
+    "CHANGE_HISTORY.md": {
+      "sha256": "98611e7ab31330fe2aaf51a5ef3a1ff6b505e6a7e6417ba61de06a31bd51972e",
+      "bytes": 13881,
+      "purpose": "Historical transitions and commit audit trail"
+    },
+    "COMPATIBILITY_BASELINE.md": {
+      "sha256": "3c6b699bf88b82380ad40b9c2acdfda89b7995c99b160df6dc01739c2bdf98cb",
+      "bytes": 29532,
+      "purpose": "8-point compatibility contracts and breaking change triggers"
+    },
+    "DEPENDENCY_MAP.md": {
+      "sha256": "23dc1a743d37a9332838b98e2cb6a988d2c840a42b431b17ce6c3eba339e6056",
+      "bytes": 10201,
+      "purpose": "End-to-end data lineage and volume paths"
+    },
+    "ENVIRONMENT.md": {
+      "sha256": "b4b4441e0dc7a84df9acf015118f5aa084f3a7d12cb21f1fdcb5d7074c075441",
+      "bytes": 21846,
+      "purpose": "Target cloud runtime and local workstation specification"
+    },
+    "IMPLEMENTED_TECHNOLOGIES.md": {
+      "sha256": "e65720675ba578076872f06118e1fd0c0506dcf51754b7d0ad501afbfe702ab6",
+      "bytes": 17314,
+      "purpose": "Active DDL, Volume APIs, and table constraints"
+    },
+    "KNOWLEDGE_AUDIT.md": {
+      "sha256": "a99b451bc76156f01038586461984feedafb8cd458f6f54a5725329bcaf7d406",
+      "bytes": 22690,
+      "purpose": "Audit findings, nuance corrections, and contradictions"
+    },
+    "OFFICIAL_SOURCES.md": {
+      "sha256": "445196797fa3d1ab8158c77682f631f257ae3ab243dd96a43804b8683f026d7f",
+      "bytes": 15365,
+      "purpose": "Official vendor bibliography and authority URLs"
+    },
+    "PROJECT_PROFILE.md": {
+      "sha256": "d6c2f018a6fdc4eebf47820842365f33ba32df2de0a459bced94381ec790df68",
+      "bytes": 18283,
+      "purpose": "Domain objectives, business questions, and 11-stage mapping"
+    }
+  }
+}
