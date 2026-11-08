@@ -9,6 +9,8 @@ This file contains binding instructions for any AI assistant or autonomous agent
 operating within this workspace. Antigravity automatically discovers and loads
 this file at the start of every session as a root-level workspace rule.
 
+> **Phased Builder Directive:** Read `PROJECT.md` first. Update it after every unit. Follow its plan and "Current" section.
+
 ---
 
 ## PART I: MANDATORY SESSION-START REVIEW PROTOCOL (TWO-LAYER KNOWLEDGE ARCHITECTURE)
