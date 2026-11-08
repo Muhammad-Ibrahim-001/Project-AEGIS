@@ -92,10 +92,22 @@ class TestMultiGrainFactBuilders(unittest.TestCase):
 
     def setUp(self):
         self.dw = gold.GoldDimensionWarehouse()
-        # Seed Plant 3 (Barry)
-        self.dw.populate_dim_plant([{"orispl_code": 3, "plant_name": "Barry", "state_code": "AL"}])
+        # Seed Plant 3 (Barry) with coordinates
+        self.dw.populate_dim_plant([{
+            "orispl_code": 3,
+            "plant_name": "Barry",
+            "state_code": "AL",
+            "latitude": 31.0069,
+            "longitude": -88.0103
+        }])
         self.dw.populate_dim_ba([{"ba_code": "SOCO", "ba_name": "Southern Company", "interconnect": "Eastern"}])
-        self.dw.populate_dim_weather_station([{"icao": "KMOB", "station_name": "Mobile Regional Airport", "state": "AL"}])
+        self.dw.populate_dim_weather_station([{
+            "icao": "KMOB",
+            "station_name": "Mobile Regional Airport",
+            "state": "AL",
+            "lat": 30.687,
+            "lon": -88.242
+        }])
 
     def test_fact_hourly_emissions_weather(self):
         raw_cems = [{

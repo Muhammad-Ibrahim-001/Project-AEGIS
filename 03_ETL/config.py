@@ -171,7 +171,7 @@ DATA_QUALITY_RULES: Dict[str, Any] = {
     },
     
     # Spatial Join Thresholds
-    "MAX_WEATHER_DISTANCE_KM": 50.0,
+    "MAX_WEATHER_DISTANCE_KM": 100.0,
     "MAX_TEMPORAL_WEATHER_DIFF_MINUTES": 60,
     
     # Business rule: Negative net generation during maintenance outages is VALID

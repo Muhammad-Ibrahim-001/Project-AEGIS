@@ -21,6 +21,7 @@ This module is responsible for:
 
 import os
 import sys
+import csv
 import json
 import uuid
 import re
@@ -100,6 +101,93 @@ def try_cast_int(value: Any) -> Optional[int]:
     """
     f_val = try_cast_float(value)
     return int(round(f_val)) if f_val is not None else None
+
+
+def standardize_text(value: Any, mode: str = "title") -> Optional[str]:
+    """
+    Standardizes string text:
+    - Strips leading and trailing whitespace.
+    - Collapses multiple internal whitespace characters into a single space.
+    - Coerces sentinel values and empty strings to None.
+    - If mode == 'title': Converts words to Title Case (e.g. ' lahore ' and 'LAHORE' -> 'Lahore').
+    - If mode == 'upper': Converts string to UPPERCASE (e.g. ' pjm ' -> 'PJM').
+    - If mode == 'lower': Converts string to lowercase.
+    """
+    if is_sentinel(value):
+        return None
+    val_str = str(value).strip()
+    if not val_str:
+        return None
+    collapsed = re.sub(r"\s+", " ", val_str)
+    if not collapsed:
+        return None
+    if mode == "title":
+        return collapsed.title()
+    elif mode == "upper":
+        return collapsed.upper()
+    elif mode == "lower":
+        return collapsed.lower()
+    return collapsed
+
+
+# Global cleaning step log history
+CLEANING_STEP_LOG: List[Dict[str, Any]] = []
+
+
+def record_cleaning_step(
+    batch_id: str,
+    step_name: str,
+    target_table: str,
+    rows_in: int,
+    rows_changed: int,
+    rows_removed: int,
+    rows_quarantined: int,
+    spark_session=None
+) -> Dict[str, Any]:
+    """
+    Logs data cleansing metrics (in, changed, removed, quarantined)
+    to dwbi_catalog.silver_conformed.cleaning_step_log in Databricks
+    or to 02_Data/cleaned_data/cleaning_step_log.csv when running offline.
+    """
+    entry = {
+        "batch_id": batch_id,
+        "step_name": step_name,
+        "target_table": target_table,
+        "rows_in": rows_in,
+        "rows_changed": rows_changed,
+        "rows_removed": rows_removed,
+        "rows_quarantined": rows_quarantined,
+        "logged_at": datetime.now(timezone.utc).isoformat()
+    }
+    CLEANING_STEP_LOG.append(entry)
+
+    # Persist to local CSV
+    try:
+        out_dir = MODULE_DIR.parent / "02_Data" / "cleaned_data"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        csv_file = out_dir / "cleaning_step_log.csv"
+        file_exists = csv_file.exists()
+        with open(csv_file, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                "batch_id", "step_name", "target_table", "rows_in",
+                "rows_changed", "rows_removed", "rows_quarantined", "logged_at"
+            ])
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(entry)
+    except Exception as e:
+        print(f"[WARN] Failed to write cleaning step log to CSV: {e}")
+
+    if spark_session is not None:
+        try:
+            from pyspark.sql import Row
+            log_table = config.get_table_fqn("SILVER", "cleaning_step_log")
+            df_log = spark_session.createDataFrame([Row(**entry)])
+            df_log.write.format("delta").mode("append").saveAsTable(log_table)
+        except Exception as e:
+            print(f"[WARN] Failed to write cleaning step log to Spark Delta table: {e}")
+
+    return entry
 
 
 # ==============================================================================
@@ -208,10 +296,15 @@ def conform_plants(
     """
     Conforms and deduplicates EIA-860 plant master records.
     Filters out rows with invalid or missing ORISPL codes.
+    Standardizes text (plant_name, county_name, utility_name in Title Case; state_code, ba_code in Uppercase).
+    Deduplicates on orispl_code, keeping latest, counting duplicates.
     """
     conformed = []
     quarantined = []
-    seen_orispl = set()
+    rows_in = len(raw_plants)
+    rows_changed = 0
+    rows_removed = 0
+    seen_plants = {}  # orispl -> index in conformed
 
     for row in raw_plants:
         raw_code = row.get("plant_code") or row.get("plant_id")
@@ -230,27 +323,55 @@ def conform_plants(
             quarantined.append(q_rec)
             continue
 
-        if orispl in seen_orispl:
-            # Deduplicate by retaining first verified plant definition
-            continue
-        seen_orispl.add(orispl)
+        raw_name = row.get("plant_name", "UNKNOWN")
+        std_name = standardize_text(raw_name, mode="title") or "Unknown Plant"
+        raw_county = row.get("county", row.get("county_name"))
+        std_county = standardize_text(raw_county, mode="title")
+        raw_util = row.get("utility_name")
+        std_util = standardize_text(raw_util, mode="title")
+
+        raw_state = str(row.get("state", row.get("state_code", "")))
+        std_state = (standardize_text(raw_state, mode="upper") or "")[:2]
+        raw_ba = row.get("balancing_auth_code", row.get("ba_code"))
+        std_ba = standardize_text(raw_ba, mode="upper")
+
+        if (std_name != raw_name or std_county != raw_county or 
+            std_util != raw_util or std_state != raw_state or std_ba != raw_ba):
+            rows_changed += 1
 
         chp_flag = str(row.get("is_combined_heat_power", "")).strip().upper()
-        conformed.append({
+        plant_rec = {
             "orispl_code": orispl,
-            "plant_name": str(row.get("plant_name", "UNKNOWN")).strip(),
+            "plant_name": std_name,
             "utility_id": try_cast_int(row.get("utility_id")),
-            "utility_name": coerce_sentinel(row.get("utility_name")),
-            "state_code": str(row.get("state", row.get("state_code", ""))).strip().upper()[:2],
-            "county_name": coerce_sentinel(row.get("county", row.get("county_name"))),
+            "utility_name": std_util,
+            "state_code": std_state,
+            "county_name": std_county,
             "latitude": try_cast_float(row.get("latitude")),
             "longitude": try_cast_float(row.get("longitude")),
-            "ba_code": coerce_sentinel(row.get("balancing_auth_code", row.get("ba_code"))),
+            "ba_code": std_ba,
             "is_combined_heat_power": chp_flag in ["Y", "YES", "TRUE", "1"],
             "_batch_id": batch_id,
             "_conformed_at": datetime.now(timezone.utc).isoformat()
-        })
+        }
 
+        if orispl in seen_plants:
+            rows_removed += 1
+            conformed[seen_plants[orispl]] = plant_rec
+        else:
+            seen_plants[orispl] = len(conformed)
+            conformed.append(plant_rec)
+
+    record_cleaning_step(
+        batch_id=batch_id,
+        step_name="CONFORM_PLANTS",
+        target_table="silver_plants",
+        rows_in=rows_in,
+        rows_changed=rows_changed,
+        rows_removed=rows_removed,
+        rows_quarantined=len(quarantined),
+        spark_session=spark_session
+    )
     return conformed, quarantined
 
 
@@ -266,9 +387,14 @@ def conform_generators_scd2(
     - Monitored Attributes: operating_status, nameplate_capacity_mw.
     - If status or capacity changes, closes previous version (valid_to = now, is_current = False)
       and opens new version (valid_from = now, valid_to = '9999-12-31 23:59:59', is_current = True).
+    - Deduplicates on (orispl_code, generator_id) within incoming batch, keeping latest.
+    - Standardizes codes and text to uppercase.
     """
     effective_timestamp = effective_timestamp or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     open_infinity = "9999-12-31 23:59:59"
+    rows_in = len(raw_generators)
+    rows_changed = 0
+    rows_removed = 0
 
     # Index existing current records by (orispl, gen_id)
     existing_map = {}
@@ -278,14 +404,13 @@ def conform_generators_scd2(
                 k = (rec.get("orispl_code"), str(rec.get("generator_id")).strip().upper())
                 existing_map[k] = dict(rec)
 
-    conformed_updates = []
-    conformed_inserts = []
+    # First pass: Deduplicate incoming batch by natural key (orispl, gen_id), keeping latest
+    deduped_raw = {}
     quarantined = []
-
     for row in raw_generators:
         raw_code = row.get("plant_code") or row.get("plant_id")
         orispl = try_cast_int(raw_code)
-        gen_id = str(row.get("generator_id", "")).strip().upper()
+        gen_id = standardize_text(row.get("generator_id", ""), mode="upper")
 
         if orispl is None or not gen_id:
             q_rec = quarantine_record(
@@ -299,8 +424,23 @@ def conform_generators_scd2(
             quarantined.append(q_rec)
             continue
 
-        raw_status = str(row.get("status", row.get("operating_status", "OP"))).strip().upper()
+        nat_key = (orispl, gen_id)
+        if nat_key in deduped_raw:
+            rows_removed += 1
+        deduped_raw[nat_key] = row
+
+    conformed_updates = []
+    conformed_inserts = []
+
+    for (orispl, gen_id), row in deduped_raw.items():
+        raw_status = row.get("status", row.get("operating_status", "OP"))
+        std_status = standardize_text(raw_status, mode="upper") or "OP"
         capacity_mw = try_cast_float(row.get("nameplate_capacity_mw"))
+        pm = standardize_text(row.get("prime_mover", row.get("prime_mover_code", "")), mode="upper") or ""
+        energy = standardize_text(row.get("energy_source_1", row.get("primary_energy_source", "")), mode="upper") or ""
+
+        if std_status != raw_status or pm != row.get("prime_mover") or energy != row.get("energy_source_1"):
+            rows_changed += 1
 
         nat_key = (orispl, gen_id)
         if nat_key in existing_map:
@@ -309,7 +449,7 @@ def conform_generators_scd2(
             prior_cap = try_cast_float(prior.get("nameplate_capacity_mw"))
 
             # Check if tracked attributes evolved
-            if prior_status != raw_status or (capacity_mw is not None and prior_cap != capacity_mw):
+            if prior_status != std_status or (capacity_mw is not None and prior_cap != capacity_mw):
                 # Close the prior version (SCD-2 Expiration)
                 prior["valid_to"] = effective_timestamp
                 prior["is_current"] = False
@@ -317,7 +457,7 @@ def conform_generators_scd2(
 
                 # Insert new active version
                 new_version = dict(prior)
-                new_version["operating_status"] = raw_status
+                new_version["operating_status"] = std_status
                 new_version["nameplate_capacity_mw"] = capacity_mw
                 new_version["valid_from"] = effective_timestamp
                 new_version["valid_to"] = open_infinity
@@ -332,10 +472,10 @@ def conform_generators_scd2(
             conformed_inserts.append({
                 "orispl_code": orispl,
                 "generator_id": gen_id,
-                "prime_mover_code": str(row.get("prime_mover", row.get("prime_mover_code", ""))).strip().upper(),
-                "primary_energy_source": str(row.get("energy_source_1", row.get("primary_energy_source", ""))).strip().upper(),
+                "prime_mover_code": pm,
+                "primary_energy_source": energy,
                 "nameplate_capacity_mw": capacity_mw,
-                "operating_status": raw_status,
+                "operating_status": std_status,
                 "operating_year": try_cast_int(row.get("operating_year")),
                 "planned_retirement_year": try_cast_int(row.get("retirement_year", row.get("planned_retirement_year"))),
                 "valid_from": effective_timestamp,
@@ -343,6 +483,16 @@ def conform_generators_scd2(
                 "is_current": True,
                 "_batch_id": batch_id
             })
+
+    record_cleaning_step(
+        batch_id=batch_id,
+        step_name="CONFORM_GENERATORS_SCD2",
+        target_table="silver_generators",
+        rows_in=rows_in,
+        rows_changed=rows_changed,
+        rows_removed=rows_removed,
+        rows_quarantined=len(quarantined)
+    )
 
     all_conformed = conformed_updates + conformed_inserts
     return all_conformed, quarantined
@@ -359,9 +509,15 @@ def conform_monthly_generation(
     - Calculates and validates heat rate per prime mover.
     - Routes out-of-bounds heat rate records to quarantine.
     - Allows negative net generation (station maintenance draw).
+    - Standardizes text (plant_name in Title Case; prime_mover_code, energy_source_code in Uppercase).
+    - Computes snapshot month_start_date_key (YYYYMMDD).
+    - Records cleaning metrics (rows_in, rows_changed, rows_removed, rows_quarantined).
     """
     conformed = []
     quarantined = []
+    rows_in = len(raw_gen_records)
+    rows_changed = 0
+    rows_removed = 0
 
     for row in raw_gen_records:
         raw_code = row.get("plant_id") or row.get("plant_code")
@@ -380,11 +536,21 @@ def conform_monthly_generation(
             quarantined.append(q_rec)
             continue
 
-        pm = str(row.get("reported_prime_mover", "")).strip().upper()
-        fuel_code = str(row.get("reported_fuel_type", "")).strip().upper()
+        raw_name = row.get("plant_name")
+        std_name = standardize_text(raw_name, mode="title")
+        raw_pm = row.get("reported_prime_mover", "")
+        pm = standardize_text(raw_pm, mode="upper") or ""
+        raw_fuel = row.get("reported_fuel_type", "")
+        fuel_code = standardize_text(raw_fuel, mode="upper") or ""
+
+        if std_name != raw_name or pm != str(raw_pm).strip() or fuel_code != str(raw_fuel).strip():
+            rows_changed += 1
+
+        # Extract year and month start key
+        year_val = try_cast_int(row.get("YEAR") or row.get("year")) or 2023
+        month_start_date_key = year_val * 10000 + 101  # January default snapshot
 
         # In EIA-923, each record contains monthly quantities and netgen
-        # We test month-level pairs (e.g. january)
         qty_val = row.get("quantity_january")
         netgen_val = row.get("netgen_january")
 
@@ -416,9 +582,11 @@ def conform_monthly_generation(
 
         conformed.append({
             "orispl_code": orispl,
-            "plant_name": coerce_sentinel(row.get("plant_name")),
+            "plant_name": std_name,
             "prime_mover_code": pm,
             "energy_source_code": fuel_code,
+            "year": year_val,
+            "month_start_date_key": month_start_date_key,
             "net_generation_mwh": netgen_clean if netgen_clean is not None else 0.0,
             "fuel_consumed_mmbtu": fuel_mmbtu,
             "avg_heat_rate_btu_kwh": heat_rate,
@@ -427,6 +595,16 @@ def conform_monthly_generation(
             "_conformed_at": datetime.now(timezone.utc).isoformat()
         })
 
+    record_cleaning_step(
+        batch_id=batch_id,
+        step_name="CONFORM_MONTHLY_GENERATION",
+        target_table="silver_monthly_generation",
+        rows_in=rows_in,
+        rows_changed=rows_changed,
+        rows_removed=rows_removed,
+        rows_quarantined=len(quarantined),
+        spark_session=spark_session
+    )
     return conformed, quarantined
 
 
@@ -438,13 +616,19 @@ def conform_weather_hourly(
     """
     Conforms NOAA ISD Weather observations:
     - Coerces -9999 sensor dropouts to NULL.
+    - Standardizes station_id to uppercase.
     - Routes invalid readings or corrupt timestamps to quarantine.
+    - Records cleaning metrics (rows_in, rows_changed, rows_removed, rows_quarantined).
     """
     conformed = []
     quarantined = []
+    rows_in = len(raw_weather_records)
+    rows_changed = 0
+    rows_removed = 0
 
     for row in raw_weather_records:
-        station_id = str(row.get("station_id", row.get("station", ""))).strip()
+        raw_station = row.get("station_id", row.get("station", ""))
+        station_id = standardize_text(raw_station, mode="upper") or "UNKNOWN"
         ts = row.get("timestamp_utc", row.get("timestamp", ""))
 
         temp_raw = row.get("air_temperature_c", row.get("temperature", {}).get("value") if isinstance(row.get("temperature"), dict) else row.get("temperature"))
@@ -452,6 +636,9 @@ def conform_weather_hourly(
 
         temp_c = try_cast_float(temp_raw)
         wind_mps = try_cast_float(wind_raw)
+
+        if station_id != str(raw_station).strip() or is_sentinel(temp_raw) or is_sentinel(wind_raw):
+            rows_changed += 1
 
         # Flag and quarantine extreme sensor corruption (e.g. raw string -9999 not coerced)
         if str(temp_raw).strip() == "-9999" or str(wind_raw).strip() == "-9999":
@@ -478,6 +665,273 @@ def conform_weather_hourly(
             "_conformed_at": datetime.now(timezone.utc).isoformat()
         })
 
+    record_cleaning_step(
+        batch_id=batch_id,
+        step_name="CONFORM_WEATHER_HOURLY",
+        target_table="silver_weather_hourly",
+        rows_in=rows_in,
+        rows_changed=rows_changed,
+        rows_removed=rows_removed,
+        rows_quarantined=len(quarantined),
+        spark_session=spark_session
+    )
+    return conformed, quarantined
+
+
+def conform_emissions_hourly(
+    raw_emissions: List[Dict[str, Any]],
+    batch_id: str,
+    spark_session=None
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Conforms EPA CAMPD Hourly Smokestack Emissions:
+    - Sentinel coercion on all numeric metrics (gross load, heat input, SO2, NOx, CO2).
+    - Date format validation (YYYY-MM-DD -> date_key YYYYMMDD); invalid dates routed to quarantine.
+    - Hour validation (0-23); invalid or out-of-bounds hours routed to quarantine.
+    - Facility and unit key validation; missing keys routed to quarantine.
+    - Deduplication on (orispl_code, unit_id, date_key, hour_of_day), keeping latest.
+    - Records cleaning metrics (rows_in, rows_changed, rows_removed, rows_quarantined).
+    """
+    conformed = []
+    quarantined = []
+    rows_in = len(raw_emissions)
+    rows_changed = 0
+    rows_removed = 0
+    seen_keys = {}  # (orispl, unit, date_key, hour) -> index in conformed
+
+    for row in raw_emissions:
+        raw_code = (row.get("oris_code") or row.get("facilityid") or row.get("facilityId") or 
+                    row.get("plant_code") or row.get("facility_id"))
+        orispl = try_cast_int(raw_code)
+
+        if orispl is None or orispl <= 0:
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="EPA-CAMPD",
+                source_table="bronze_staging.raw_epa_hourly_emissions",
+                source_row_identifier=str(raw_code),
+                rejection_reason="INVALID_PLANT_ID",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
+        raw_unit = row.get("unit_id") or row.get("unitid") or row.get("unitId")
+        unit_id = standardize_text(raw_unit, mode="upper")
+        if not unit_id:
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="EPA-CAMPD",
+                source_table="bronze_staging.raw_epa_hourly_emissions",
+                source_row_identifier=f"{orispl}_UNKNOWN_UNIT",
+                rejection_reason="MISSING_UNIT_ID",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
+        # Parse date
+        raw_date = row.get("date_observed") or row.get("date")
+        date_key = None
+        if raw_date is not None:
+            clean_date_str = str(raw_date).strip().replace("-", "")
+            if len(clean_date_str) == 8 and clean_date_str.isdigit():
+                date_key = try_cast_int(clean_date_str)
+
+        if date_key is None or date_key < 19000101 or date_key > 21000101:
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="EPA-CAMPD",
+                source_table="bronze_staging.raw_epa_hourly_emissions",
+                source_row_identifier=f"{orispl}_{unit_id}_{raw_date}",
+                rejection_reason="INVALID_DATE_FORMAT",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
+        # Parse hour
+        raw_hour = row.get("hour_observed") if row.get("hour_observed") is not None else row.get("hour")
+        hour_of_day = try_cast_int(raw_hour)
+        if hour_of_day is None or hour_of_day < 0 or hour_of_day > 23:
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="EPA-CAMPD",
+                source_table="bronze_staging.raw_epa_hourly_emissions",
+                source_row_identifier=f"{orispl}_{unit_id}_{date_key}_{raw_hour}",
+                rejection_reason="INVALID_HOUR_RANGE",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
+        # Clean measures
+        gross_load = try_cast_float(row.get("gross_load_mw") if row.get("gross_load_mw") is not None else (row.get("grossload") if row.get("grossload") is not None else row.get("grossLoad")))
+        heat_input = try_cast_float(row.get("heat_input_mmbtu") if row.get("heat_input_mmbtu") is not None else (row.get("heatinput") if row.get("heatinput") is not None else row.get("heatInput")))
+        so2_mass = try_cast_float(row.get("so2_mass_lbs") if row.get("so2_mass_lbs") is not None else (row.get("so2mass") if row.get("so2mass") is not None else row.get("so2Mass")))
+        nox_mass = try_cast_float(row.get("nox_mass_lbs") if row.get("nox_mass_lbs") is not None else (row.get("noxmass") if row.get("noxmass") is not None else row.get("noxMass")))
+        co2_mass = try_cast_float(row.get("co2_mass_tons") if row.get("co2_mass_tons") is not None else (row.get("co2mass") if row.get("co2mass") is not None else row.get("co2Mass")))
+
+        if (is_sentinel(gross_load) or is_sentinel(heat_input) or 
+            is_sentinel(so2_mass) or is_sentinel(nox_mass) or is_sentinel(co2_mass)):
+            rows_changed += 1
+
+        rec = {
+            "orispl_code": orispl,
+            "unit_id": unit_id,
+            "date_key": date_key,
+            "hour_of_day": hour_of_day,
+            "gross_load_mw": gross_load,
+            "heat_input_mmbtu": heat_input,
+            "so2_mass_lbs": so2_mass,
+            "nox_mass_lbs": nox_mass,
+            "co2_mass_tons": co2_mass,
+            "_batch_id": batch_id,
+            "_conformed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Deduplication check
+        dedup_key = (orispl, unit_id, date_key, hour_of_day)
+        if dedup_key in seen_keys:
+            rows_removed += 1
+            conformed[seen_keys[dedup_key]] = rec
+        else:
+            seen_keys[dedup_key] = len(conformed)
+            conformed.append(rec)
+
+    record_cleaning_step(
+        batch_id=batch_id,
+        step_name="CONFORM_EMISSIONS_HOURLY",
+        target_table="silver_emissions_hourly",
+        rows_in=rows_in,
+        rows_changed=rows_changed,
+        rows_removed=rows_removed,
+        rows_quarantined=len(quarantined),
+        spark_session=spark_session
+    )
+    return conformed, quarantined
+
+
+def conform_grid_hourly(
+    raw_grid: List[Dict[str, Any]],
+    batch_id: str,
+    spark_session=None
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Conforms EIA-930 Hourly Balancing Authority Grid Telemetry:
+    - Sentinel coercion on power flow and generation mix metrics.
+    - Standardizes ba_code (uppercase) and ba_name (Title Case).
+    - Timestamp parsing (extracts date_key YYYYMMDD and hour_of_day 0-23); invalid timestamps quarantined.
+    - Deduplication on (ba_code, date_key, hour_of_day), keeping latest.
+    - Records cleaning metrics (rows_in, rows_changed, rows_removed, rows_quarantined).
+    """
+    conformed = []
+    quarantined = []
+    rows_in = len(raw_grid)
+    rows_changed = 0
+    rows_removed = 0
+    seen_keys = {}  # (ba_code, date_key, hour) -> index in conformed
+
+    for row in raw_grid:
+        raw_ba = row.get("ba_code", row.get("balancing_auth_code"))
+        ba_code = standardize_text(raw_ba, mode="upper")
+        if not ba_code:
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="EIA-930",
+                source_table="bronze_staging.raw_eia930_hourly_grid",
+                source_row_identifier=f"UNKNOWN_BA_{row.get('timestamp_utc')}",
+                rejection_reason="MISSING_BA_CODE",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
+        raw_ba_name = row.get("ba_name")
+        ba_name = standardize_text(raw_ba_name, mode="title") or ba_code
+
+        # Parse timestamp
+        raw_ts = row.get("timestamp_utc", row.get("timestamp"))
+        date_key = None
+        hour_of_day = None
+        if raw_ts is not None:
+            try:
+                dt = datetime.fromisoformat(str(raw_ts).strip().replace("Z", "+00:00"))
+                date_key = int(dt.strftime("%Y%m%d"))
+                hour_of_day = dt.hour
+            except Exception:
+                pass
+
+        if date_key is None or hour_of_day is None:
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="EIA-930",
+                source_table="bronze_staging.raw_eia930_hourly_grid",
+                source_row_identifier=f"{ba_code}_{raw_ts}",
+                rejection_reason="INVALID_GRID_TIMESTAMP",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
+        demand_mw = try_cast_float(row.get("demand_mw"))
+        forecast_mw = try_cast_float(row.get("demand_forecast_mw"))
+        gen_coal = try_cast_float(row.get("gen_coal_mw"))
+        gen_gas = try_cast_float(row.get("gen_natgas_mw", row.get("gen_gas_mw")))
+        gen_nuclear = try_cast_float(row.get("gen_nuclear_mw"))
+        gen_hydro = try_cast_float(row.get("gen_hydro_mw"))
+        gen_wind = try_cast_float(row.get("gen_wind_mw"))
+        gen_solar = try_cast_float(row.get("gen_solar_mw"))
+        interchange = try_cast_float(row.get("net_interchange_mw"))
+
+        if (ba_name != raw_ba_name or ba_code != raw_ba or
+            is_sentinel(row.get("demand_mw")) or is_sentinel(row.get("demand_forecast_mw"))):
+            rows_changed += 1
+
+        rec = {
+            "ba_code": ba_code,
+            "ba_name": ba_name,
+            "interconnect": str(row.get("interconnect", "Unknown")).strip(),
+            "timestamp_utc": str(raw_ts),
+            "date_key": date_key,
+            "hour_of_day": hour_of_day,
+            "demand_mw": demand_mw,
+            "demand_forecast_mw": forecast_mw,
+            "gen_coal_mw": gen_coal,
+            "gen_natgas_mw": gen_gas,
+            "gen_nuclear_mw": gen_nuclear,
+            "gen_hydro_mw": gen_hydro,
+            "gen_wind_mw": gen_wind,
+            "gen_solar_mw": gen_solar,
+            "net_interchange_mw": interchange,
+            "_batch_id": batch_id,
+            "_conformed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        dedup_key = (ba_code, date_key, hour_of_day)
+        if dedup_key in seen_keys:
+            rows_removed += 1
+            conformed[seen_keys[dedup_key]] = rec
+        else:
+            seen_keys[dedup_key] = len(conformed)
+            conformed.append(rec)
+
+    record_cleaning_step(
+        batch_id=batch_id,
+        step_name="CONFORM_GRID_HOURLY",
+        target_table="silver_grid_hourly",
+        rows_in=rows_in,
+        rows_changed=rows_changed,
+        rows_removed=rows_removed,
+        rows_quarantined=len(quarantined),
+        spark_session=spark_session
+    )
     return conformed, quarantined
 
 
@@ -521,6 +975,14 @@ def run_silver_conformance_suite(
         "archived/scratch_api_tests/sample_data/sample_noaa_isd_weather.json",
         batch_id=master_batch_id
     )
+    _, raw_cems = bronze.extract_json_records(
+        "archived/scratch_api_tests/sample_data/sample_epa_hourly_emissions.json",
+        batch_id=master_batch_id
+    )
+    _, raw_grid = bronze.extract_json_records(
+        "archived/scratch_api_tests/sample_data/sample_eia930_hourly_grid.json",
+        batch_id=master_batch_id
+    )
 
     # 2. Conform Plants Master
     print("-> Conforming Plants Master...")
@@ -542,16 +1004,30 @@ def run_silver_conformance_suite(
     silver_weather, q_weather = conform_weather_hourly(raw_weather, batch_id=master_batch_id, spark_session=spark_session)
     print(f"   ✓ Clean Weather: {len(silver_weather)} | Quarantined: {len(q_weather)}")
 
-    total_conformed = len(silver_plants) + len(silver_generators) + len(silver_923) + len(silver_weather)
-    total_quarantined = len(q_plants) + len(q_gen) + len(q_923) + len(q_weather)
+    # 6. Conform EPA Hourly Emissions
+    print("-> Conforming EPA Hourly Emissions Telemetry...")
+    silver_emissions, q_emissions = conform_emissions_hourly(raw_cems, batch_id=master_batch_id, spark_session=spark_session)
+    print(f"   ✓ Clean Emissions: {len(silver_emissions)} | Quarantined: {len(q_emissions)}")
 
-    # 6. Log Silver pipeline execution to etl_run_log
+    # 7. Conform EIA-930 Grid Telemetry
+    print("-> Conforming EIA-930 Hourly Grid Telemetry...")
+    silver_grid, q_grid = conform_grid_hourly(raw_grid, batch_id=master_batch_id, spark_session=spark_session)
+    print(f"   ✓ Clean Grid Telemetry: {len(silver_grid)} | Quarantined: {len(q_grid)}")
+
+    total_conformed = (len(silver_plants) + len(silver_generators) + len(silver_923) + 
+                       len(silver_weather) + len(silver_emissions) + len(silver_grid))
+    total_quarantined = (len(q_plants) + len(q_gen) + len(q_923) + 
+                         len(q_weather) + len(q_emissions) + len(q_grid))
+    total_raw_read = (len(raw_plants) + len(raw_gen) + len(raw_gen923) + 
+                      len(raw_weather) + len(raw_cems) + len(raw_grid))
+
+    # 8. Log Silver pipeline execution to etl_run_log
     bronze.log_etl_run(
         spark_session=spark_session,
         batch_id=master_batch_id,
         pipeline_step="SILVER_CONFORMANCE",
         source_system="MEDALLION_SILVER",
-        records_read=len(raw_plants) + len(raw_gen) + len(raw_gen923) + len(raw_weather),
+        records_read=total_raw_read,
         records_inserted=total_conformed,
         records_updated=0,
         records_rejected=total_quarantined,
@@ -566,6 +1042,8 @@ def run_silver_conformance_suite(
         "conformed_generators_count": len(silver_generators),
         "conformed_monthly_gen_count": len(silver_923),
         "conformed_weather_count": len(silver_weather),
+        "conformed_emissions_count": len(silver_emissions),
+        "conformed_grid_count": len(silver_grid),
         "total_conformed_records": total_conformed,
         "total_quarantined_records": total_quarantined,
         "execution_status": "SUCCESS"

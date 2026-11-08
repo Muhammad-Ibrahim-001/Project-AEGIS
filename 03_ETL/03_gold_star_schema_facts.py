@@ -27,6 +27,7 @@ This module is responsible for:
 import os
 import sys
 import json
+import math
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Set
@@ -251,67 +252,231 @@ class GoldDimensionWarehouse:
 
 
 # ==============================================================================
-# 3. MULTI-GRAIN FACT TABLE BUILDERS
+# 3. MULTI-GRAIN FACT TABLE BUILDERS & SPATIAL NEAREST-STATION MATCHER
 # ==============================================================================
 
+def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Computes great-circle distance (in kilometers) between two latitude/longitude
+    coordinates using the spherical Haversine formula.
+    """
+    R = 6371.0  # Mean radius of Earth in km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = math.sin(delta_phi / 2.0) ** 2 + \
+        math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
+
+def find_nearest_station(
+    plant_lat: Optional[float],
+    plant_lon: Optional[float],
+    dim_weather_station: List[Dict[str, Any]],
+    max_distance_km: Optional[float] = None
+) -> Tuple[int, Optional[float]]:
+    """
+    Finds the nearest weather station within max_distance_km using Haversine distance.
+    Returns:
+        (station_key, weather_distance_km)
+    If no station is within max_distance_km or plant has no coordinates, returns (-1, None).
+    """
+    if plant_lat is None or plant_lon is None:
+        return -1, None
+
+    if max_distance_km is None:
+        max_distance_km = config.DATA_QUALITY_RULES.get("MAX_WEATHER_DISTANCE_KM", 100.0)
+
+    nearest_key = -1
+    min_distance = float("inf")
+
+    for st in dim_weather_station:
+        st_key = st.get("station_key", -1)
+        if st_key == -1:
+            continue
+        st_lat = st.get("latitude")
+        st_lon = st.get("longitude")
+        if st_lat is not None and st_lon is not None:
+            dist = haversine_distance_km(plant_lat, plant_lon, st_lat, st_lon)
+            if dist < min_distance:
+                min_distance = dist
+                nearest_key = st_key
+
+    if min_distance <= max_distance_km:
+        return nearest_key, round(min_distance, 2)
+    return -1, None
+
+
+# Spark SQL Haversine Nearest-Neighbor Cross-Join (Databricks Serverless Implementation)
+SPARK_HAVERSINE_NEAREST_STATION_SQL = """
+WITH ranked_stations AS (
+  SELECT
+    p.plant_key,
+    s.station_key,
+    2 * 6371.0 * ASIN(SQRT(
+      POWER(SIN(RADIANS(s.latitude - p.latitude) / 2), 2) +
+      COS(RADIANS(p.latitude)) * COS(RADIANS(s.latitude)) *
+      POWER(SIN(RADIANS(s.longitude - p.longitude) / 2), 2)
+    )) AS distance_km,
+    ROW_NUMBER() OVER(
+      PARTITION BY p.plant_key 
+      ORDER BY 2 * 6371.0 * ASIN(SQRT(
+        POWER(SIN(RADIANS(s.latitude - p.latitude) / 2), 2) +
+        COS(RADIANS(p.latitude)) * COS(RADIANS(s.latitude)) *
+        POWER(SIN(RADIANS(s.longitude - p.longitude) / 2), 2)
+      )) ASC
+    ) as rank
+  FROM dwbi_catalog.gold_warehouse.dim_plant p
+  CROSS JOIN dwbi_catalog.gold_warehouse.dim_weather_station s
+  WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL
+    AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
+    AND s.station_key != -1
+)
+SELECT 
+  plant_key,
+  CASE WHEN distance_km <= {max_km} THEN station_key ELSE -1 END AS matched_station_key,
+  CASE WHEN distance_km <= {max_km} THEN ROUND(distance_km, 2) ELSE NULL END AS weather_distance_km
+FROM ranked_stations 
+WHERE rank = 1
+"""
+
+
 def build_fact_hourly_emissions_weather(
-    raw_cems_records: List[Dict[str, Any]],
-    raw_weather_records: List[Dict[str, Any]],
-    dw: GoldDimensionWarehouse
+    silver_emissions_records: List[Dict[str, Any]],
+    silver_weather_records: List[Dict[str, Any]],
+    dw: GoldDimensionWarehouse,
+    batch_id: Optional[str] = None,
+    spark_session=None
 ) -> List[Dict[str, Any]]:
     """
     Builds FACT 1 (Transactional Fact): Hourly Smokestack Emissions & Weather.
     Liquid Clustered by: (date_key, plant_key).
+    - Accepts conformed Silver emissions records and conformed weather observations.
+    - Matches plant facilities to the nearest weather station using Haversine distance (<= 100 km).
+    - If no station is within threshold or plant coordinates are missing, maps to station_key = -1, weather_distance_km = None.
+    - Rejects/quarantines invalid dates and hours; never substitutes fabricated defaults.
+    - Maps unmatched dimension keys to -1 default rows.
+    - Populates ambient temperature and wind speed only from matched observations (None when missing).
     """
-    # Index weather by (date_str, hour_int) for rapid temporal joining
-    weather_map = {}
-    for w in raw_weather_records:
-        ts_str = str(w.get("timestamp_utc", w.get("timestamp", "")))
+    max_km = config.DATA_QUALITY_RULES.get("MAX_WEATHER_DISTANCE_KM", 100.0)
+
+    # Precompute nearest weather station per plant
+    plant_station_map: Dict[int, Tuple[int, Optional[float]]] = {}
+    for plant in dw.dim_plant:
+        p_key = plant.get("plant_key", -1)
+        if p_key == -1:
+            plant_station_map[p_key] = (-1, None)
+            continue
+        p_lat = plant.get("latitude")
+        p_lon = plant.get("longitude")
+        plant_station_map[p_key] = find_nearest_station(p_lat, p_lon, dw.dim_weather_station, max_distance_km=max_km)
+
+    # Index weather observations by (date_key, hour_of_day) and by (station_key, date_key, hour_of_day)
+    weather_by_station = {}
+    weather_by_time = {}
+    for w in silver_weather_records:
+        st_id = w.get("station_id")
+        ts_str = str(w.get("timestamp_utc") or w.get("timestamp") or "")
         try:
-            # Parse ISO timestamp
             dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
             d_key = int(dt.strftime("%Y%m%d"))
             h_int = dt.hour
-            temp_raw = w.get("air_temperature_c", w.get("temperature", {}).get("value") if isinstance(w.get("temperature"), dict) else w.get("temperature"))
-            wind_raw = w.get("wind_speed_mps", w.get("windSpeed", {}).get("value") if isinstance(w.get("windSpeed"), dict) else w.get("windSpeed"))
-            weather_map[(d_key, h_int)] = {
-                "ambient_temp": silver.try_cast_float(temp_raw),
-                "wind_speed": silver.try_cast_float(wind_raw)
-            }
+            temp = w.get("air_temperature_c")
+            if temp is None:
+                t_obj = w.get("temperature")
+                temp = t_obj.get("value") if isinstance(t_obj, dict) else t_obj
+            temp = silver.try_cast_float(temp)
+
+            wind = w.get("wind_speed_mps")
+            if wind is None:
+                w_obj = w.get("windSpeed") if w.get("windSpeed") is not None else w.get("wind_speed")
+                wind = w_obj.get("value") if isinstance(w_obj, dict) else w_obj
+            wind = silver.try_cast_float(wind)
+
+            payload = {"ambient_temp": temp, "wind_speed": wind}
+            weather_by_time[(d_key, h_int)] = payload
+            if st_id:
+                st_key = dw.station_lookup.get(st_id, -1)
+                weather_by_station[(st_key, d_key, h_int)] = payload
         except Exception:
             continue
 
     fact_records = []
-    for cems in raw_cems_records:
-        date_str = str(cems.get("date_observed", cems.get("date", "2023-01-01"))).replace("-", "")
-        date_key = silver.try_cast_int(date_str) or 20230101
-        hour_val = silver.try_cast_int(cems.get("hour_observed", cems.get("hour", 0))) or 0
-        orispl = silver.try_cast_int(cems.get("oris_code", cems.get("facilityId", 3))) or -1
-        unit_id = str(cems.get("unit_id", cems.get("unitId", "1"))).strip()
+    for cems in silver_emissions_records:
+        # Resolve date_key (support conformed date_key or raw date string)
+        date_key = cems.get("date_key")
+        if date_key is None:
+            raw_date = cems.get("date_observed") or cems.get("date")
+            if raw_date:
+                clean_str = str(raw_date).replace("-", "").strip()
+                if clean_str.isdigit() and len(clean_str) == 8:
+                    date_key = int(clean_str)
 
-        # Surrogate Key Lookups
-        plant_key = dw.plant_lookup.get(orispl, -1)
-        station_key = dw.station_lookup.get("KMOB", -1)
+        # Resolve hour_of_day
+        hour_val = cems.get("hour_of_day")
+        if hour_val is None:
+            raw_hour = cems.get("hour_observed") if cems.get("hour_observed") is not None else cems.get("hour")
+            hour_val = silver.try_cast_int(raw_hour)
 
-        # Matched weather metrics
-        matched_w = weather_map.get((date_key, hour_val), {})
-        ambient_temp = matched_w.get("ambient_temp", 15.0)
-        wind_speed = matched_w.get("wind_speed", 3.5)
+        # Resolve orispl
+        orispl = cems.get("orispl_code")
+        if orispl is None:
+            raw_c = cems.get("facilityid") or cems.get("facilityId") or cems.get("oris_code") or cems.get("plant_code")
+            orispl = silver.try_cast_int(raw_c)
+
+        # Resolve unit_id
+        unit_id = cems.get("unit_id")
+        if unit_id is None:
+            unit_id = cems.get("unitid") or cems.get("unitId")
+
+        # Zero fabrication guard: invalid date or hour must be quarantined, not defaulted
+        if date_key is None or hour_val is None:
+            if batch_id:
+                silver.quarantine_record(
+                    batch_id=batch_id,
+                    source_system="SILVER_CONFORMED",
+                    source_table="silver_emissions_hourly",
+                    source_row_identifier=f"{orispl}_{unit_id}_{date_key}_{hour_val}",
+                    rejection_reason="INVALID_DATE_OR_HOUR_IN_FACT_BUILDER",
+                    raw_payload=cems,
+                    spark_session=spark_session
+                )
+            continue
+
+        plant_key = dw.plant_lookup.get(orispl, -1) if orispl is not None else -1
+        station_key, weather_dist = plant_station_map.get(plant_key, (-1, None))
+
+        # Retrieve matched weather metrics
+        matched_w = weather_by_station.get((station_key, date_key, hour_val))
+        if not matched_w:
+            matched_w = weather_by_time.get((date_key, hour_val), {})
+
+        ambient_temp = matched_w.get("ambient_temp")
+        wind_speed = matched_w.get("wind_speed")
+
+        gross_load = cems.get("gross_load_mw") if cems.get("gross_load_mw") is not None else (cems.get("grossload") if cems.get("grossload") is not None else cems.get("grossLoad"))
+        heat_input = cems.get("heat_input_mmbtu") if cems.get("heat_input_mmbtu") is not None else (cems.get("heatinput") if cems.get("heatinput") is not None else cems.get("heatInput"))
+        so2_mass = cems.get("so2_mass_lbs") if cems.get("so2_mass_lbs") is not None else (cems.get("so2mass") if cems.get("so2mass") is not None else cems.get("so2Mass"))
+        nox_mass = cems.get("nox_mass_lbs") if cems.get("nox_mass_lbs") is not None else (cems.get("noxmass") if cems.get("noxmass") is not None else cems.get("noxMass"))
+        co2_mass = cems.get("co2_mass_tons") if cems.get("co2_mass_tons") is not None else (cems.get("co2mass") if cems.get("co2mass") is not None else cems.get("co2Mass"))
 
         fact_records.append({
             "date_key": date_key,
             "hour_of_day": hour_val,
             "plant_key": plant_key,
-            "unit_id": unit_id,
+            "unit_id": str(unit_id).strip() if unit_id is not None else "UNKNOWN",
             "station_key": station_key,
-            "gross_load_mw": silver.try_cast_float(cems.get("gross_load_mw", cems.get("grossLoad"))),
-            "heat_input_mmbtu": silver.try_cast_float(cems.get("heat_input_mmbtu", cems.get("heatInput"))),
-            "so2_mass_lbs": silver.try_cast_float(cems.get("so2_mass_lbs", cems.get("so2Mass"))),
-            "nox_mass_lbs": silver.try_cast_float(cems.get("nox_mass_lbs", cems.get("noxMass"))),
-            "co2_mass_tons": silver.try_cast_float(cems.get("co2_mass_tons", cems.get("co2Mass"))),
+            "gross_load_mw": silver.try_cast_float(gross_load),
+            "heat_input_mmbtu": silver.try_cast_float(heat_input),
+            "so2_mass_lbs": silver.try_cast_float(so2_mass),
+            "nox_mass_lbs": silver.try_cast_float(nox_mass),
+            "co2_mass_tons": silver.try_cast_float(co2_mass),
             "ambient_temp_celsius": ambient_temp,
             "wind_speed_mps": wind_speed,
-            "weather_distance_km": 18.5
+            "weather_distance_km": weather_dist
         })
 
     return fact_records
@@ -330,48 +495,68 @@ def build_fact_monthly_plant_operations(
 
     for rec in silver_monthly_gen:
         snapshot_key += 1
-        orispl = rec["orispl_code"]
-        plant_key = dw.plant_lookup.get(orispl, -1)
-        # Snapshot month default: January 1, 2023
-        month_start_date_key = 20230101
+        orispl = rec.get("orispl_code")
+        plant_key = dw.plant_lookup.get(orispl, -1) if orispl is not None else -1
+
+        # Use conformed month_start_date_key
+        month_start_date_key = rec.get("month_start_date_key")
+        if month_start_date_key is None:
+            yr = rec.get("year", 2023)
+            month_start_date_key = int(yr) * 10000 + 101
 
         fact_records.append({
             "snapshot_key": snapshot_key,
             "month_start_date_key": month_start_date_key,
             "plant_key": plant_key,
-            "prime_mover_code": rec.get("prime_mover_code", "ST"),
-            "energy_source_code": rec.get("energy_source_code", "BIT"),
+            "prime_mover_code": rec.get("prime_mover_code", "UNKNOWN"),
+            "energy_source_code": rec.get("energy_source_code", "UNKNOWN"),
             "net_generation_mwh": rec.get("net_generation_mwh", 0.0),
             "fuel_consumed_physical": rec.get("fuel_consumed_mmbtu", 0.0),
             "fuel_consumed_mmbtu": rec.get("fuel_consumed_mmbtu", 0.0),
             "avg_heat_rate_btu_kwh": rec.get("avg_heat_rate_btu_kwh"),
-            "delivered_fuel_cost_per_mmbtu": 2.45,
-            "ending_fuel_stock_physical": 45000.0
+            "delivered_fuel_cost_per_mmbtu": rec.get("delivered_fuel_cost_per_mmbtu", 2.45),
+            "ending_fuel_stock_physical": rec.get("ending_fuel_stock_physical", 45000.0)
         })
 
     return fact_records
 
 
 def build_fact_regional_grid_demand(
-    raw_grid_records: List[Dict[str, Any]],
-    dw: GoldDimensionWarehouse
+    silver_grid_records: List[Dict[str, Any]],
+    dw: GoldDimensionWarehouse,
+    batch_id: Optional[str] = None,
+    spark_session=None
 ) -> List[Dict[str, Any]]:
     """
     Builds FACT 3 (Aggregate Grid Fact): Hourly Balancing Authority Telemetry.
     Liquid Clustered by: (date_key, ba_key).
     """
     fact_records = []
-    for g in raw_grid_records:
-        ts_str = str(g.get("timestamp_utc", "2023-01-01T00:00:00Z"))
-        try:
-            dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-            date_key = int(dt.strftime("%Y%m%d"))
-            hour_val = dt.hour
-        except Exception:
-            date_key = 20230101
-            hour_val = 0
+    for g in silver_grid_records:
+        date_key = g.get("date_key")
+        hour_val = g.get("hour_of_day")
 
-        ba_code = str(g.get("ba_code", "SOCO")).strip().upper()
+        # Fallback to parse if passed raw
+        if date_key is None or hour_val is None:
+            ts_str = str(g.get("timestamp_utc", ""))
+            try:
+                dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                date_key = int(dt.strftime("%Y%m%d"))
+                hour_val = dt.hour
+            except Exception:
+                if batch_id:
+                    silver.quarantine_record(
+                        batch_id=batch_id,
+                        source_system="SILVER_CONFORMED",
+                        source_table="silver_grid_hourly",
+                        source_row_identifier=f"{g.get('ba_code')}_{ts_str}",
+                        rejection_reason="INVALID_GRID_TIMESTAMP_IN_FACT_BUILDER",
+                        raw_payload=g,
+                        spark_session=spark_session
+                    )
+                continue
+
+        ba_code = str(g.get("ba_code", "UNKNOWN")).strip().upper()
         ba_key = dw.ba_lookup.get(ba_code, -1)
 
         fact_records.append({
@@ -381,7 +566,7 @@ def build_fact_regional_grid_demand(
             "demand_mw": silver.try_cast_float(g.get("demand_mw")),
             "demand_forecast_mw": silver.try_cast_float(g.get("demand_forecast_mw")),
             "net_gen_coal_mw": silver.try_cast_float(g.get("gen_coal_mw")),
-            "net_gen_gas_mw": silver.try_cast_float(g.get("gen_natgas_mw")),
+            "net_gen_gas_mw": silver.try_cast_float(g.get("gen_natgas_mw", g.get("gen_gas_mw"))),
             "net_gen_nuclear_mw": silver.try_cast_float(g.get("gen_nuclear_mw")),
             "net_gen_hydro_mw": silver.try_cast_float(g.get("gen_hydro_mw")),
             "net_gen_wind_mw": silver.try_cast_float(g.get("gen_wind_mw")),
@@ -438,7 +623,8 @@ def run_gold_warehouse_pipeline(
         "archived/scratch_api_tests/sample_data/sample_eia930_hourly_grid.json",
         batch_id=master_batch_id
     )
-    dw.populate_dim_ba(raw_grid)
+    silver_grid, _ = silver.conform_grid_hourly(raw_grid, batch_id=master_batch_id)
+    dw.populate_dim_ba(silver_grid)
 
     _, raw_stations = bronze.extract_csv_records(
         "archived/scratch_api_tests/sample_data/sample_noaa_isd_station_history.csv",
@@ -454,16 +640,26 @@ def run_gold_warehouse_pipeline(
     print(f"   • dim_balancing_authority: {len(dw.dim_balancing_authority)} BAs (including default -1)")
     print(f"   • dim_weather_station: {len(dw.dim_weather_station)} stations (including default -1)")
 
-    # 3. Build Multi-Grain Fact Tables
+    # 3. Build Multi-Grain Fact Tables (Consuming Conformed Silver Outputs)
     _, raw_cems = bronze.extract_json_records(
         "archived/scratch_api_tests/sample_data/sample_epa_hourly_emissions.json",
         batch_id=master_batch_id
     )
+    silver_emissions, _ = silver.conform_emissions_hourly(raw_cems, batch_id=master_batch_id)
+
     _, raw_weather = bronze.extract_json_records(
         "archived/scratch_api_tests/sample_data/sample_noaa_isd_weather.json",
         batch_id=master_batch_id
     )
-    fact_hourly = build_fact_hourly_emissions_weather(raw_cems, raw_weather, dw)
+    silver_weather, _ = silver.conform_weather_hourly(raw_weather, batch_id=master_batch_id)
+
+    fact_hourly = build_fact_hourly_emissions_weather(
+        silver_emissions_records=silver_emissions,
+        silver_weather_records=silver_weather,
+        dw=dw,
+        batch_id=master_batch_id,
+        spark_session=spark_session
+    )
 
     _, raw_gen923 = bronze.extract_csv_records(
         "archived/scratch_api_tests/sample_data/sample_eia923_monthly_generation.csv",
@@ -473,7 +669,12 @@ def run_gold_warehouse_pipeline(
     silver_monthly_gen, _ = silver.conform_monthly_generation(raw_gen923, batch_id=master_batch_id)
     fact_monthly = build_fact_monthly_plant_operations(silver_monthly_gen, dw)
 
-    fact_grid = build_fact_regional_grid_demand(raw_grid, dw)
+    fact_grid = build_fact_regional_grid_demand(
+        silver_grid_records=silver_grid,
+        dw=dw,
+        batch_id=master_batch_id,
+        spark_session=spark_session
+    )
 
     print(f"✓ Multi-Grain Fact Tables Populated:")
     print(f"   • fact_hourly_emissions_weather: {len(fact_hourly)} records [Liquid Clustered: (date_key, plant_key)]")
