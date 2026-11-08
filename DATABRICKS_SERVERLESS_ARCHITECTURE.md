@@ -17,7 +17,16 @@
 | **Unified Governance & Lineage**| **Unity Catalog** | 3-Tier Namespace (`catalog.schema.table`) | Centralized data governance, file landing volumes, column-level lineage, and data contracts. |
 | **Raw Storage Landing** | **Unity Catalog Volumes** | Managed / External Storage Volume | File-level landing zone for multi-source raw files (Excel, CSV, JSON). |
 | **Data Transformation (ELT)**| **PySpark & Databricks SQL** | Delta `MERGE INTO` & Serverless Pipelines | Automated Medallion processing (Bronze $\to$ Silver $\to$ Gold) and SCD Type 1 & 2. |
-| **Business Intelligence (BI)** | **Microsoft Power BI Desktop** | Native Databricks Connector (DirectQuery / Import) | Executive dashboards, efficiency scatter plots, and weather-grid correlation visuals. |
+| **Business Intelligence (BI)** | **Microsoft Power BI Desktop & Service** | Native Databricks DirectQuery & "Publish to Power BI" | Live query pushdown to Photon engine; zero client-side import memory bottlenecks. |
+
+---
+
+### 1.1 Temporal Scope: 4-Year National Horizon (2021 – 2024)
+* **Time Span:** January 1, 2021 through December 31, 2024 (1,461 calendar days / 35,064 hourly periods).
+* **Multi-Year Analytical Value:**
+  * **True Year-over-Year (YoY) Analytics:** Enables multi-period OLAP hierarchies (`ROLLUP` / `CUBE` across Year $\to$ Quarter $\to$ Month) and YoY trend metrics (`LAG(net_gen, 1) OVER (PARTITION BY plant ORDER BY year)`).
+  * **Authentic SCD Type 2 Lifecycle Tracking:** Captures multi-year generator status transitions (`Operating` $\to$ `Standby` $\to$ `Retired`) with valid `valid_from` and `valid_to` timestamps.
+  * **Historic Energy & Climate Stress Benchmarks:** Covers Winter Storm Uri (Feb 2021 Texas freeze), Winter Storm Elliott (Dec 2022 freeze), and record-breaking 2023–2024 summer heatwaves.
 
 ---
 
@@ -101,8 +110,8 @@ Power BI Desktop and external development environments connect directly to the D
 * **Default Database / Schema:** `gold_marts` (or `gold_warehouse`)
 * **Authentication:** Azure AD / Databricks Personal Access Token (PAT) / OAuth.
 * **Connection Mode:** 
-  * **DirectQuery:** For real-time, live querying off the Serverless SQL Warehouse.
-  * **Import:** For high-speed in-memory caching of dimensional tables and data marts.
+  * **DirectQuery / Catalog Publish:** Live query execution pushed down to the Databricks Serverless SQL Warehouse. Zero client-side data import; visual filters execute against Delta Lake in sub-seconds.
+  * **Publish to Power BI Workspace:** Unity Catalog syncs table structures and PK/FK relationships directly to the Power BI Service semantic model without manual data modeling.
 
 ### 3.2 Python / Databricks Connect Configuration (Optional Local Execution)
 ```python

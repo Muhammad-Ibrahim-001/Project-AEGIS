@@ -1,0 +1,36 @@
+[
+  {
+    "ba_code": "SOCO",
+    "ba_name": "Southern Company Services, Inc.",
+    "interconnect": "Eastern",
+    "timestamp_utc": "2023-01-01T05:00:00Z",
+    "local_time": "2023-01-01 00:00:00",
+    "demand_mw": 21850.0,
+    "demand_forecast_mw": 22100.0,
+    "net_generation_mw": 22400.0,
+    "net_interchange_mw": 550.0,
+    "gen_coal_mw": 5200.0,
+    "gen_natgas_mw": 11800.0,
+    "gen_nuclear_mw": 3950.0,
+    "gen_hydro_mw": 1100.0,
+    "gen_solar_mw": 0.0,
+    "gen_wind_mw": 350.0
+  },
+  {
+    "ba_code": "SOCO",
+    "ba_name": "Southern Company Services, Inc.",
+    "interconnect": "Eastern",
+    "timestamp_utc": "2023-01-01T06:00:00Z",
+    "local_time": "2023-01-01 01:00:00",
+    "demand_mw": 20920.0,
+    "demand_forecast_mw": 21150.0,
+    "net_generation_mw": 21350.0,
+    "net_interchange_mw": 430.0,
+    "gen_coal_mw": 5100.0,
+    "gen_natgas_mw": 10950.0,
+    "gen_nuclear_mw": 3950.0,
+    "gen_hydro_mw": 1000.0,
+    "gen_solar_mw": 0.0,
+    "gen_wind_mw": 350.0
+  }
+]

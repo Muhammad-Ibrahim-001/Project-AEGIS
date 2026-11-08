@@ -86,40 +86,24 @@ DWBI-Final-Project/
 │   ├── Architecture.pdf / .png       # High-resolution pipeline architecture diagram
 │   ├── Schema.png                    # High-resolution Star Schema raster diagram
 │   ├── schema_diagram_mermaid.md     # Verified Mermaid code for Draw.io diagram rendering
-│   ├── Requirements.md               # Markdown summary linking to Phase 1 documents
+│   ├── Requirements.md               # Markdown summary linking to preserved Phase 1 documents
 │   ├── README.md                     # Documentation folder index and guidelines
 │   ├── course_requirements/          # ⚠️ MANDATORY: University syllabus, rubrics, architecture
 │   └── Team_Guides/                  # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
 │
-├── Phase_1_Submission/               # Complete formal academic Phase 1 package
-│   ├── Phase_1_Project_Proposal_and_Design_Document.md
-│   ├── Phase_1_Architecture_and_Schema_Specification.md
-│   ├── Phase_1_Data_Dictionary.md
-│   ├── Phase_1_Project_Execution_Plan.md
-│   ├── Phase_1_Executive_Summary_and_Checklist.md
-│   ├── Data_Dictionary.xlsx
-│   ├── Requirements.pdf / Schema.pdf / Architecture.pdf
-│   ├── Architecture_Pipeline_Diagram.png
-│   └── Schema_Diagram.jpg
-│
 ├── 02_Data/
-│   ├── raw_data/                     # Raw downloaded archives (EIA-860/923, EPA CAMPD, NOAA ISD)
+│   ├── raw_data/                     # Raw bulk archives (EIA-860/923, EPA CAMPD, NOAA ISD)
 │   └── cleaned_data/                 # Cleaned CSV outputs ready for Silver/Gold loading
 │
 ├── 03_ETL/
-│   ├── staging.sql                   # Bronze staging tables & quarantine table DDL (Databricks Delta)
-│   └── quality_checks.sql            # Automated SQL rules routing invalid records to quarantine
+│   └── config.py                     # ⭐ Master Lakehouse Configuration & Catalog Setup (Databricks)
 │
-├── 04_Data_Warehouse/
-│   └── warehouse.sql                 # Production DDL for Star Schema (Delta Lake with Liquid Clustering)
+├── 05_Analytics/                     # Analytical SQL, OLAP queries (ROLLUP/CUBE) & views
 │
-├── 05_Analytics/
-│   ├── OLAP.sql                      # Multi-dimensional aggregations (ROLLUP, CUBE, Windowing)
-│   └── Views.sql                     # Gold Layer Materialized Views for Power BI DirectQuery
-│
-└── 06_Dashboard/
-    ├── README.md                     # 3-Page Power BI report design & Databricks connection guide
-    └── PowerBI.pbix                  # Interactive Power BI report
+└── archived/                         # 🗄️ Preserved Historical Artifacts & Early Drafts
+    ├── Phase_1_Submission/           # Complete formal academic Phase 1 package
+    ├── early_sql_drafts/             # Initial staging, warehouse, and OLAP SQL drafts
+    └── scratch_api_tests/            # Preliminary test scrapers & micro-samples
 ```
 
 ---

@@ -15,8 +15,9 @@
   * **Platform & Compute:** Databricks Serverless Notebook Compute (Photon Engine) + Databricks Serverless SQL Warehouse.
   * **Storage & Table Format:** Delta Lake (`USING DELTA`) with ACID transactions, time-travel, and Liquid Clustering.
   * **Governance & Catalog:** Unity Catalog 3-tier namespace (**`dwbi_catalog`**): `bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`.
+  * **Temporal Horizon:** **4-Year National Analysis Window (2021 – 2024)** spanning 1,461 calendar days and 35,064 hourly periods, enabling authentic YoY calculations and SCD Type 2 unit transitions.
   * **ETL & Data Engineering:** PySpark & Databricks SQL (Delta `MERGE INTO` for SCD Type 1 & Type 2).
-  * **Visualization & BI:** Microsoft Power BI Desktop (`PowerBI.pbix` connecting via Native Databricks DirectQuery).
+  * **Visualization & BI:** Microsoft Power BI Desktop & Service (`PowerBI.pbix` connecting via Native Databricks DirectQuery).
   * **Full Architecture Guide:** [`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md).
 
 ### 1.2 Alignment with Official Course Architecture
@@ -244,42 +245,24 @@ DWBI-Final-Project/
 │   ├── Architecture.pdf / .png       # High-resolution pipeline architecture diagram
 │   ├── Schema.png                    # High-resolution Star Schema raster diagram
 │   ├── schema_diagram_mermaid.md     # Verified Mermaid code for Draw.io diagram rendering
-│   ├── Requirements.md               # Markdown summary linking to Phase 1 documents
+│   ├── Requirements.md               # Markdown summary linking to archived Phase 1 documents
 │   ├── README.md                     # Documentation folder index and guidelines
 │   ├── course_requirements/          # ⚠️ MANDATORY: University syllabus, rubrics, architecture
 │   └── Team_Guides/                  # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
 │
-├── Phase_1_Submission/               # Complete formal academic Phase 1 package
-│   ├── Phase_1_Project_Proposal_and_Design_Document.md
-│   ├── Phase_1_Architecture_and_Schema_Specification.md
-│   ├── Phase_1_Data_Dictionary.md
-│   ├── Phase_1_Project_Execution_Plan.md
-│   ├── Phase_1_Executive_Summary_and_Checklist.md
-│   ├── Data_Dictionary.xlsx
-│   ├── Requirements.pdf
-│   ├── Schema.pdf
-│   ├── Architecture.pdf
-│   ├── Architecture_Pipeline_Diagram.png
-│   └── Schema_Diagram.jpg
-│
 ├── 02_Data/
-│   ├── raw_data/                     # Sample raw downloads (EIA-860/923, EPA CAMPD, NOAA)
-│   └── cleaned_data/                 # Sample cleaned CSV outputs from Silver processing
+│   ├── raw_data/                     # Raw bulk downloads (EIA-860/923, EPA CAMPD, NOAA ISD)
+│   └── cleaned_data/                 # Cleaned CSV outputs from Silver processing
 │
 ├── 03_ETL/
-│   ├── staging.sql                   # DDL creating staging & quarantine tables (Delta Lake)
-│   └── quality_checks.sql            # DQ rules routing invalid records to quarantine
+│   └── config.py                     # ⭐ Master Lakehouse Configuration & Catalog Setup (Databricks)
 │
-├── 04_Data_Warehouse/
-│   └── warehouse.sql                 # Production DDL for Star Schema (Delta Lake with Liquid Clustering)
+├── 05_Analytics/                     # Analytical SQL, OLAP queries (ROLLUP/CUBE) & views
 │
-├── 05_Analytics/
-│   ├── OLAP.sql                      # Multi-dimensional aggregations (ROLLUP, CUBE)
-│   └── Views.sql                     # Gold Layer Materialized Views (dwbi_catalog.gold_marts)
-│
-└── 06_Dashboard/
-    ├── README.md                     # 3-Page Power BI specification & connection guide
-    └── PowerBI.pbix                  # Interactive Power BI report connected to Databricks DirectQuery
+├── archived/                         # 🗄️ Preserved Historical Artifacts & Early Drafts
+│   ├── Phase_1_Submission/           # Complete formal academic Phase 1 package
+│   ├── early_sql_drafts/             # Initial staging, warehouse, and OLAP SQL drafts
+│   └── scratch_api_tests/            # Preliminary test scrapers & micro-samples
 ```
 
 ---

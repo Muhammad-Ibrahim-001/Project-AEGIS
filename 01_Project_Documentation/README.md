@@ -23,7 +23,7 @@ These three primary deliverables match the exact university repository layout:
 * **[`Architecture.pdf`](Architecture.pdf) / [`Architecture.png`](Architecture.png)**: Visual 8-stage / 11-stage end-to-end pipeline architecture.
 * **[`Schema.pdf`](Schema.pdf) / [`Schema.png`](Schema.png)**: Visual Kimball Star Schema blueprint and raster export.
 * **[`schema_diagram_mermaid.md`](schema_diagram_mermaid.md)**: Verified Mermaid ERD code blocks for Draw.io (`app.diagrams.net`).
-* **[`Requirements.md`](Requirements.md)**: Markdown summary linking to the formal Phase 1 proposal and deliverables in `Phase_1_Submission/`.
+* **[`Requirements.md`](Requirements.md)**: Markdown summary linking to the formal Phase 1 proposal and deliverables preserved in `archived/Phase_1_Submission/`.
 
 ### 3. Subdirectories
 * **[`course_requirements/`](course_requirements/) — ⚠️ MANDATORY REFERENCE:**  

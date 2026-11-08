@@ -1,0 +1,90 @@
+Plant Id,"Combined Heat And
+Power Plant",Nuclear Unit Id,Plant Name,Operator Name,Operator Id,Plant State,Census Region,NERC Region,Reserved,NAICS Code,EIA Sector Number,Sector Name,"Reported
+Prime Mover","Reported
+Fuel Type Code","MER
+Fuel Type Code","Balancing
+Authority Code","Respondent
+Frequency","Physical
+Unit Label","Quantity
+January","Quantity
+February","Quantity
+March","Quantity
+April","Quantity
+May","Quantity
+June","Quantity
+July","Quantity
+August","Quantity
+September","Quantity
+October","Quantity
+November","Quantity
+December","Elec_Quantity
+January","Elec_Quantity
+February","Elec_Quantity
+March","Elec_Quantity
+April","Elec_Quantity
+May","Elec_Quantity
+June","Elec_Quantity
+July","Elec_Quantity
+August","Elec_Quantity
+September","Elec_Quantity
+October","Elec_Quantity
+November","Elec_Quantity
+December","MMBtuPer_Unit
+January","MMBtuPer_Unit
+February","MMBtuPer_Unit
+March","MMBtuPer_Unit
+April","MMBtuPer_Unit
+May","MMBtuPer_Unit
+June","MMBtuPer_Unit
+July","MMBtuPer_Unit
+August","MMBtuPer_Unit
+September","MMBtuPer_Unit
+October","MMBtuPer_Unit
+November","MMBtuPer_Unit
+December","Tot_MMBtu
+January","Tot_MMBtu
+February","Tot_MMBtu
+March","Tot_MMBtu
+April","Tot_MMBtu
+May","Tot_MMBtu
+June","Tot_MMBtu
+July","Tot_MMBtu
+August","Tot_MMBtu
+September","Tot_MMBtu
+October","Tot_MMBtu
+November","Tot_MMBtu
+December","Elec_MMBtu
+January","Elec_MMBtu
+February","Elec_MMBtu
+March","Elec_MMBtu
+April","Elec_MMBtu
+May","Elec_MMBtu
+June","Elec_MMBtu
+July","Elec_MMBtu
+August","Elec_MMBtu
+September","Elec_MMBtu
+October","Elec_MMBtu
+November","Elec_MMBtu
+December","Netgen
+January","Netgen
+February","Netgen
+March","Netgen
+April","Netgen
+May","Netgen
+June","Netgen
+July","Netgen
+August","Netgen
+September","Netgen
+October","Netgen
+November","Netgen
+December","Total Fuel Consumption
+Quantity","Electric Fuel Consumption
+Quantity","Total Fuel Consumption
+MMBtu","Elec Fuel Consumption
+MMBtu","Net Generation
+(Megawatthours)",YEAR
+3,N,.,Barry,Alabama Power Co,195,AL,ESC,SERC,,22,1,Electric Utility,CA,NG,NG,SOCO,M,mcf,.,38712,40552,28876,45731,188566,134189,111212,58898,21198,30257,43878,.,38712,40552,28876,45731,188566,134189,111212,58898,21198,30257,43878,.,1.019,1.014,1.015,1.016,1.02,1.02,1.015,1.014,1.016,1.017,1.023,.,39448,41120,29309,46463,192337,136873,112880,59723,21537,30771,44887,.,39448,41120,29309,46463,192337,136873,112880,59723,21537,30771,44887,.,223553,138515,132677,128349,246193,269584,204626,132785,134782,214912,398808,742069,742069,755348,755348,2224784.0,2023
+3,N,.,Barry,Alabama Power Co,195,AL,ESC,SERC,,22,1,Electric Utility,CT,NG,NG,SOCO,M,mcf,.,4442863,2755384,2648729,2616856,4765922,5351964,4024962,2597303,2781837,4307046,7868503,.,4442863,2755384,2648729,2616856,4765922,5351964,4024962,2597303,2781837,4307046,7868503,.,1.019,1.014,1.015,1.016,1.02,1.02,1.015,1.014,1.016,1.017,1.023,.,4527277,2793959,2688460,2658726,4861240,5459003,4085336,2633665,2826346,4380266,8049479,.,4527277,2793959,2688460,2658726,4861240,5459003,4085336,2633665,2826346,4380266,8049479,.,436106,267251,256299,248810,470594,514303,390390,252226,266871,420357,800849,44161369,44161369,44963757,44963757,4324056.0,2023
+3,N,.,Barry,Alabama Power Co,195,AL,ESC,SERC,,22,1,Electric Utility,ST,BIT,COL,SOCO,M,short tons,.,4428,116769,46331,104862,173482,174489,114158,62716,28103,0,0,.,4428,116769,46331,104862,173482,174489,114158,62716,28103,0,0,.,19.97,19.954,19.717,19.891,19.676,19.51,19.851,20.201,19.846,0,0,.,88427,2330009,913508,2085810,3413432,3404280,2266150,1266926,557732,0,0,.,88427,2330009,913508,2085810,3413432,3404280,2266150,1266926,557732,0,0,.,6426.202,224248.9,81487.473,197857.28,339672.17,317430.52,204613.43,110554.19,46716.148,0,0,825338,825338,16326274,16326274,1529006.3,2023
+3,N,.,Barry,Alabama Power Co,195,AL,ESC,SERC,,22,1,Electric Utility,ST,NG,NG,SOCO,M,mcf,.,418010,482674,915534,801520,158214,1016535,1160534,756952,843744,143205,13,.,418010,482674,915534,801520,158214,1016535,1160534,756952,843744,143205,13,.,1.024,1.039,1.017,1.018,1.02,1.018,1.016,1.016,1.015,1.016,1.022,.,428042,501498,931098,815947,161378,1034833,1179103,769063,856400,145496,13,.,428042,501498,931098,815947,161378,1034833,1179103,769063,856400,145496,13,.,31106.798,48266.103,83056.527,77399.724,16058.827,96492.481,106462.57,67109.813,71732.852,6128,-5864,6696935,6696935,6822871,6822871,597949.7,2023
+3,N,.,Barry,Alabama Power Co,195,AL,ESC,SERC,,22,1,Electric Utility,ST,SUB,COL,SOCO,M,short tons,.,0,0,0,0,0,0,0,0,0,0,0,.,0,0,0,0,0,0,0,0,0,0,0,.,0,0,0,0,0,0,0,0,0,0,0,.,0,0,0,0,0,0,0,0,0,0,0,.,0,0,0,0,0,0,0,0,0,0,0,.,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,2023

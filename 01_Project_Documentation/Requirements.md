@@ -1,15 +1,15 @@
 # DL3004 DWBI Project Requirements & Formal Specification
 
 > **Official Phase 1 Deliverables Location:**  
-> The complete academic Phase 1 proposal and design artifacts conforming to APA 7th Edition are located in the [Phase_1_Submission/](../Phase_1_Submission/) directory:
-> 1. [Phase_1_Project_Proposal_and_Design_Document.md](../Phase_1_Submission/Phase_1_Project_Proposal_and_Design_Document.md) – The master 8-chapter academic project proposal.
-> 2. [Data_Dictionary.xlsx](../Phase_1_Submission/Data_Dictionary.xlsx) – Authoritative multi-tab Excel data dictionary (4 schemas).
-> 3. [Phase_1_Data_Dictionary.md](../Phase_1_Submission/Phase_1_Data_Dictionary.md) – Formatted markdown data dictionary specification.
-> 4. [Architecture_Pipeline_Diagram.png](../Phase_1_Submission/Architecture_Pipeline_Diagram.png) – Visual 8-stage pipeline architecture flowchart.
-> 5. [Schema_Diagram.jpg](../Phase_1_Submission/Schema_Diagram.jpg) – Visual Kimball Star Schema entity-relationship blueprint.
-> 6. [Phase_1_Architecture_and_Schema_Specification.md](../Phase_1_Submission/Phase_1_Architecture_and_Schema_Specification.md) – 11-stage pipeline blueprint, validation formulas, and DDL.
-> 7. [Phase_1_Project_Execution_Plan.md](../Phase_1_Submission/Phase_1_Project_Execution_Plan.md) – Team collaboration framework, Git workflow, and 8-week roadmap.
-> 8. [Phase_1_Executive_Summary_and_Checklist.md](../Phase_1_Submission/Phase_1_Executive_Summary_and_Checklist.md) – Compliance audit matrix and docx/pdf export guide.
+> The complete academic Phase 1 proposal and design artifacts conforming to APA 7th Edition are preserved in the [archived/Phase_1_Submission/](../archived/Phase_1_Submission/) directory:
+> 1. [Phase_1_Project_Proposal_and_Design_Document.md](../archived/Phase_1_Submission/Phase_1_Project_Proposal_and_Design_Document.md) – The master 8-chapter academic project proposal.
+> 2. [Data_Dictionary.xlsx](../archived/Phase_1_Submission/Data_Dictionary.xlsx) – Authoritative multi-tab Excel data dictionary (4 schemas).
+> 3. [Phase_1_Data_Dictionary.md](../archived/Phase_1_Submission/Phase_1_Data_Dictionary.md) – Formatted markdown data dictionary specification.
+> 4. [Architecture_Pipeline_Diagram.png](../archived/Phase_1_Submission/Architecture_Pipeline_Diagram.png) – Visual 8-stage pipeline architecture flowchart.
+> 5. [Schema_Diagram.jpg](../archived/Phase_1_Submission/Schema_Diagram.jpg) – Visual Kimball Star Schema entity-relationship blueprint.
+> 6. [Phase_1_Architecture_and_Schema_Specification.md](../archived/Phase_1_Submission/Phase_1_Architecture_and_Schema_Specification.md) – 11-stage pipeline blueprint, validation formulas, and DDL.
+> 7. [Phase_1_Project_Execution_Plan.md](../archived/Phase_1_Submission/Phase_1_Project_Execution_Plan.md) – Team collaboration framework, Git workflow, and 8-week roadmap.
+> 8. [Phase_1_Executive_Summary_and_Checklist.md](../archived/Phase_1_Submission/Phase_1_Executive_Summary_and_Checklist.md) – Compliance audit matrix and docx/pdf export guide.
 
 ---
 
