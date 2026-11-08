@@ -1,7 +1,7 @@
 # DL3004 DWBI Final Project: U.S. Power Generation, Smokestack Emissions & Synoptic Weather Lakehouse
 
 > **🤖 AI AGENT OPERATIONAL DIRECTIVE:**  
-> Before modifying or generating code, schemas, or analytics, **review [`.agents`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/.agents)** and follow these core rules:  
+> Before modifying or generating code, schemas, or analytics, **review [`AGENTS.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/AGENTS.md)** and follow these core rules:  
 > 1. **DO NOT parse files inside `01_Project_Documentation/Team_Guides/`** (binary `.docx` human onboarding guides).  
 > 2. **ALWAYS read and comply with `01_Project_Documentation/course_requirements/`** (official university grading rubrics).  
 > 3. Architecture Ground Truth: The project is implemented exclusively on the **Databricks Serverless Cloud Lakehouse** governed under Unity Catalog (`dwbi_catalog`). Refer to **[`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md)** and **[`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md)**.
@@ -35,6 +35,14 @@ It replaces the default mock retail scenario with an uncompromised, real-world m
 | **Target Catalog** | **`dwbi_catalog`** | Dedicated Unity Catalog Container | Encapsulates all schemas (`bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`). |
 | **Data Transformation (ELT)**| **PySpark & Databricks SQL** | Delta `MERGE INTO` & Serverless Pipelines | Automated Medallion processing (Bronze $\to$ Silver $\to$ Gold) and SCD Type 1 & 2. |
 | **Business Intelligence (BI)** | **Microsoft Power BI Desktop** | Native Databricks Connector (DirectQuery) | Interactive 3-page dashboard connected live to `dwbi_catalog.gold_marts`. |
+
+### 2.1 Approved Team-Wide Development Standard (Mandatory Baseline)
+
+All four team members adhere to a strictly unified, 4-tier development and connectivity baseline:
+1. **Remote Serverless Compute Version:** Azure/AWS Databricks **Serverless Environment Version 5** (Photon engine, remote Python 3.12.x container, Spark Connect gRPC).
+2. **Local Python Version:** **Python 3.12.3** (`py -3.12`), installed in user scope. Strictly leaves host default Python (3.14/3.13) and system PATH untouched; provides exact minor-version parity with remote serverless compute for Python UDF support.
+3. **Databricks Connect Package Version:** **`databricks-connect==18.3.7`** installed in the dedicated repository-root **`.venv-dbx`** virtual environment. **Strictly NO standalone `pyspark` or `delta-spark` packages are installed**. All code compiles to Spark Connect Protobuf plans.
+4. **Individual Authentication Requirements:** Each member authenticates individually via Databricks CLI OAuth (`databricks auth login`) or Personal Access Token (PAT). Credentials reside strictly in the user's home profile (`~/.databrickscfg`) or in-memory session environment variables. **Zero credentials are stored in the Git repository**. Action and audit history in Unity Catalog attribute to individual teammate accounts (`current_user()`).
 
 ---
 
@@ -73,7 +81,7 @@ The project workload is split into four decoupled, modular work packages:
 
 ```
 DWBI-Final-Project/
-├── .agents                           # AI Agent Operational Directives & Binding Rules
+├── AGENTS.md                         # AI Agent Operational Directives & Binding Rules
 ├── .gitignore                        # Git exclusion specifications
 ├── README.md                         # This master repository guide
 ├── DATABRICKS_SERVERLESS_ARCHITECTURE.md # Canonical Databricks Lakehouse Architecture Blueprint

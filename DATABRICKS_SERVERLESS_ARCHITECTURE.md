@@ -113,11 +113,36 @@ Power BI Desktop and external development environments connect directly to the D
   * **DirectQuery / Catalog Publish:** Live query execution pushed down to the Databricks Serverless SQL Warehouse. Zero client-side data import; visual filters execute against Delta Lake in sub-seconds.
   * **Publish to Power BI Workspace:** Unity Catalog syncs table structures and PK/FK relationships directly to the Power BI Service semantic model without manual data modeling.
 
-### 3.2 Python / Databricks Connect Configuration (Optional Local Execution)
+### 3.2 Team-Wide Development Standard & Databricks Connect Specification
+
+All four team members adhere to a unified, mandatory local development standard connecting directly to cloud Serverless Compute via Databricks Connect. The architecture explicitly distinguishes four decoupled environmental dimensions:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                   4-TIER TEAM-WIDE DEVELOPMENT STANDARD MATRIX                         │
+├──────┬───────────────────────────────┬─────────────────────────────────────────────────┤
+│ Tier │ Architectural Dimension       │ Approved Specification                          │
+├──────┼───────────────────────────────┼─────────────────────────────────────────────────┤
+│  1   │ Remote Serverless Compute     │ Databricks Serverless Environment Version 5     │
+│  2   │ Local Python Interpreter      │ Python 3.12.3 (side-by-side user-scope install) │
+│  3   │ Databricks Connect Client     │ databricks-connect==18.3.7 (.venv-dbx)          │
+│  4   │ Authentication Architecture   │ Individual OAuth / PAT in ~/.databrickscfg      │
+└──────┴───────────────────────────────┴─────────────────────────────────────────────────┘
+```
+
+* **1. Remote Serverless Compute Version:** Azure/AWS Databricks **Serverless Environment Version 5**. Bundles Photon acceleration, sub-15s startup, Databricks Connect 18 runtime, and remote Python 3.12.x.
+* **2. Local Python Interpreter:** **Python 3.12.3** (`py -3.12`). Matches the remote serverless Python minor version (3.12.x) to guarantee Python UDF and object serialization compatibility while leaving host default Python (e.g. 3.14.5) completely untouched.
+* **3. Databricks Connect Package Version:** **`databricks-connect==18.3.7`** installed within a dedicated `.venv-dbx` environment at repository root. **Strictly NO standalone `pyspark` or `delta-spark` is installed locally**. Code compiles to Spark Connect Protobuf plans executed remotely.
+* **4. Individual Authentication Requirements:**
+  * **Zero Shared Credentials:** Each teammate uses individual credentials; no shared passwords or service principal keys.
+  * **Zero Repository Secrets:** All credentials reside outside the Git repository in `%USERPROFILE%\.databrickscfg` or in-memory environment variables (`DATABRICKS_HOST`, `DATABRICKS_TOKEN`).
+  * **Audit Attribution:** Actions, table definitions, and queries in `dwbi_catalog` are immutably attributed to the specific teammate (`current_user()`).
+
 ```python
 from databricks.connect import DatabricksSession
 
 # Connect local Python code directly to Databricks Serverless compute
+# Automatically discovers individual credentials from ~/.databrickscfg or env vars
 spark = DatabricksSession.builder.serverless().getOrCreate()
 df = spark.read.table("dwbi_catalog.gold_warehouse.fact_hourly_emissions")
 df.show(5)
