@@ -538,9 +538,9 @@ def conform_monthly_generation(
 
         raw_name = row.get("plant_name")
         std_name = standardize_text(raw_name, mode="title")
-        raw_pm = row.get("reported_prime_mover", "")
+        raw_pm = row.get("reported_prime_mover") or row.get("prime_mover_code") or ""
         pm = standardize_text(raw_pm, mode="upper") or ""
-        raw_fuel = row.get("reported_fuel_type", "")
+        raw_fuel = row.get("reported_fuel_type_code") or row.get("reported_fuel_type") or row.get("energy_source_code") or ""
         fuel_code = standardize_text(raw_fuel, mode="upper") or ""
 
         if std_name != raw_name or pm != str(raw_pm).strip() or fuel_code != str(raw_fuel).strip():
@@ -1046,7 +1046,15 @@ def run_silver_conformance_suite(
         "conformed_grid_count": len(silver_grid),
         "total_conformed_records": total_conformed,
         "total_quarantined_records": total_quarantined,
-        "execution_status": "SUCCESS"
+        "execution_status": "SUCCESS",
+        "silver_data": {
+            "silver_plants": silver_plants,
+            "silver_generators": silver_generators,
+            "silver_monthly_generation": silver_923,
+            "silver_weather_hourly": silver_weather,
+            "silver_emissions_hourly": silver_emissions,
+            "silver_grid_hourly": silver_grid
+        }
     }
 
     print("====================================================================")

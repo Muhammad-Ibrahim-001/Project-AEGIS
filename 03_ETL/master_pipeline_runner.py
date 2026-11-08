@@ -38,6 +38,7 @@ bronze = importlib.import_module("01_bronze_ingestion")
 silver = importlib.import_module("02_silver_cleansing_and_scd")
 gold = importlib.import_module("03_gold_star_schema_facts")
 marts = importlib.import_module("04_gold_reporting_marts")
+dq = importlib.import_module("05_data_quality_validation")
 
 
 def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
@@ -185,6 +186,37 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
             "elapsed_sec": round(time.time() - t4_start, 3)
         })
         print(f"    ✗ Stage 4 Error: {e}")
+
+    # --------------------------------------------------------------------------
+    # STAGE 5: Comprehensive Data Quality & Audit Validation Suite
+    # --------------------------------------------------------------------------
+    print("\n>>> STAGE 5: Comprehensive Data Quality & Audit Validation Suite...")
+    t5_start = time.time()
+    try:
+        dw_inst = g_summary.get("dw")
+        silver_dict = s_summary.get("silver_data") if "s_summary" in locals() and "silver_data" in s_summary else None
+        dq_results, dq_summary = dq.run_data_quality_suite(
+            dw=dw_inst,
+            silver_data=silver_dict,
+            cleaning_log=silver.CLEANING_STEP_LOG,
+            batch_id=master_batch_id,
+            spark_session=spark_session
+        )
+        t5_elapsed = round(time.time() - t5_start, 3)
+        stages_summary.append({
+            "stage": "Stage 5: Data Quality Suite",
+            "status": dq_summary["overall_status"],
+            "records": f"{dq_summary['total_checks']} checks ({dq_summary['passed']} PASS, {dq_summary['warned']} WARN, {dq_summary['failed']} FAIL)",
+            "elapsed_sec": t5_elapsed
+        })
+    except Exception as e:
+        stages_summary.append({
+            "stage": "Stage 5: Data Quality Suite",
+            "status": "FAILED",
+            "records": str(e),
+            "elapsed_sec": round(time.time() - t5_start, 3)
+        })
+        print(f"    ✗ Stage 5 Error: {e}")
 
     total_pipeline_time = round(time.time() - pipeline_start, 3)
 

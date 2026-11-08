@@ -129,6 +129,11 @@ class GoldDimensionWarehouse:
         self.dim_balancing_authority: List[Dict[str, Any]] = []
         self.dim_weather_station: List[Dict[str, Any]] = []
 
+        # Multi-grain fact table storage
+        self.fact_hourly_emissions_weather: List[Dict[str, Any]] = []
+        self.fact_monthly_plant_operations: List[Dict[str, Any]] = []
+        self.fact_regional_grid_demand: List[Dict[str, Any]] = []
+
         # Surrogate key lookup index dictionaries
         self.plant_lookup: Dict[int, int] = {-1: -1}  # orispl_code -> plant_key
         self.generator_lookup: Dict[Tuple[int, str], int] = {(-1, "N/A"): -1}  # (orispl, gen_id) -> generator_key
@@ -311,9 +316,12 @@ def find_nearest_station(
 
 
 # Spark SQL Haversine Nearest-Neighbor Cross-Join (Databricks Serverless Implementation)
+# NOTE: The weather station dimension (dim_weather_station) is broadcast via /*+ BROADCAST(s) */
+# because dim_weather_station is small (<1,000 stations nationwide) whereas dim_plant has ~12,000 plants.
+# Broadcasting eliminates shuffle overhead on the Cartesian cross-join.
 SPARK_HAVERSINE_NEAREST_STATION_SQL = """
 WITH ranked_stations AS (
-  SELECT
+  SELECT /*+ BROADCAST(s) */
     p.plant_key,
     s.station_key,
     2 * 6371.0 * ASIN(SQRT(
@@ -330,7 +338,7 @@ WITH ranked_stations AS (
       )) ASC
     ) as rank
   FROM dwbi_catalog.gold_warehouse.dim_plant p
-  CROSS JOIN dwbi_catalog.gold_warehouse.dim_weather_station s
+  CROSS JOIN /*+ BROADCAST(s) */ dwbi_catalog.gold_warehouse.dim_weather_station s
   WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL
     AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL
     AND s.station_key != -1
@@ -676,6 +684,11 @@ def run_gold_warehouse_pipeline(
         spark_session=spark_session
     )
 
+    # Attach facts to dw instance for pipeline validation access
+    dw.fact_hourly_emissions_weather = fact_hourly
+    dw.fact_monthly_plant_operations = fact_monthly
+    dw.fact_regional_grid_demand = fact_grid
+
     print(f"✓ Multi-Grain Fact Tables Populated:")
     print(f"   • fact_hourly_emissions_weather: {len(fact_hourly)} records [Liquid Clustered: (date_key, plant_key)]")
     print(f"   • fact_monthly_plant_operations: {len(fact_monthly)} records [Liquid Clustered: (month_start_date_key, plant_key)]")
@@ -732,7 +745,8 @@ def run_gold_warehouse_pipeline(
         "fact_monthly_operations_count": len(fact_monthly),
         "fact_regional_grid_count": len(fact_grid),
         "total_fact_rows": total_fact_rows,
-        "execution_status": "SUCCESS"
+        "execution_status": "SUCCESS",
+        "dw": dw
     }
 
     print("====================================================================")

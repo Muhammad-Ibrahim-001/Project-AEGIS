@@ -175,7 +175,13 @@ DATA_QUALITY_RULES: Dict[str, Any] = {
     "MAX_TEMPORAL_WEATHER_DIFF_MINUTES": 60,
     
     # Business rule: Negative net generation during maintenance outages is VALID
-    "ALLOW_NEGATIVE_NET_GENERATION": True
+    "ALLOW_NEGATIVE_NET_GENERATION": True,
+
+    # Data Quality Validation Thresholds
+    "DEFAULT_MEMBER_RATE_WARN_THRESHOLD": 0.05,  # Warn if > 5% mapped to -1 default member
+    "DEFAULT_MEMBER_RATE_FAIL_THRESHOLD": 0.25,  # Fail if > 25% mapped to -1 default member
+    "KEY_NULL_TOLERANCE_PCT": 0.0,               # Primary/Foreign keys must have 0% nulls
+    "MEASURE_NULL_TOLERANCE_PCT": 5.0            # Non-key measures null tolerance
 }
 
 # COMMAND ----------
@@ -353,6 +359,40 @@ def init_databricks_environment(spark_session=None):
         ) USING DELTA
     """)
     print(f"✓ Quarantine Table: '{quarantine_table}' ready.")
+
+    # 6. Initialize Data Quality Results Audit Table
+    dq_results_table = get_table_fqn("QUARANTINE", "dq_check_results")
+    spark_session.sql(f"""
+        CREATE TABLE IF NOT EXISTS {dq_results_table} (
+            check_id         STRING NOT NULL,
+            check_category   STRING NOT NULL,
+            check_name       STRING NOT NULL,
+            table_name       STRING NOT NULL,
+            column_name      STRING,
+            metric_value     DOUBLE,
+            threshold        STRING,
+            status           STRING NOT NULL,
+            run_batch_id     STRING NOT NULL,
+            checked_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+        ) USING DELTA
+    """)
+    print(f"✓ DQ Results Table: '{dq_results_table}' ready.")
+
+    # 7. Initialize Cleaning Step Log Table in Silver Conformed
+    cleaning_log_table = get_table_fqn("SILVER", "cleaning_step_log")
+    spark_session.sql(f"""
+        CREATE TABLE IF NOT EXISTS {cleaning_log_table} (
+            log_id           BIGINT GENERATED ALWAYS AS IDENTITY,
+            step_name        STRING NOT NULL,
+            table_name       STRING NOT NULL,
+            rows_in          BIGINT NOT NULL,
+            rows_changed     BIGINT NOT NULL,
+            rows_removed     BIGINT NOT NULL,
+            rows_quarantined BIGINT NOT NULL,
+            logged_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+        ) USING DELTA
+    """)
+    print(f"✓ Cleaning Log Table: '{cleaning_log_table}' ready.")
 
     print("====================================================================")
     print("DATABRICKS ENVIRONMENT READY FOR 2021 - 2024 LAKEHOUSE PIPELINE")

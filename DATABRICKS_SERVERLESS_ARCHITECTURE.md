@@ -167,10 +167,34 @@ df.show(5)
 ### 4.4 Liquid Clustering (Physical Performance Optimization)
 Instead of legacy database table partitioning and manual B-Tree index rebuilding, Delta Lake tables utilize **Liquid Clustering**:
 ```sql
-ALTER TABLE dwbi_catalog.gold_warehouse.fact_hourly_emissions 
-CLUSTER BY (orispl_code, date_key);
+ALTER TABLE dwbi_catalog.gold_warehouse.fact_hourly_emissions_weather 
+CLUSTER BY (plant_key, date_key);
 ```
 This enables automatic partition pruning, Z-order data skipping, and sub-second query performance for Power BI DirectQuery visuals.
+
+### 4.5 Spatial Haversine Nearest-Station Matching & Broadcast Hint
+For associating each generation plant with its nearest NOAA surface weather station within 100 km, the pipeline computes spherical Haversine distances between coordinates. Because the weather station dimension (`dim_weather_station`) is small (<1,000 stations nationwide) relative to `dim_plant` (~12,000 facilities), the cross-join query must explicitly include the `/*+ BROADCAST(s) */` hint:
+```sql
+WITH ranked_stations AS (
+  SELECT /*+ BROADCAST(s) */
+    p.plant_key,
+    s.station_key,
+    2 * 6371.0 * ASIN(SQRT(
+      POWER(SIN(RADIANS(s.latitude - p.latitude) / 2), 2) +
+      COS(RADIANS(p.latitude)) * COS(RADIANS(s.latitude)) *
+      POWER(SIN(RADIANS(s.longitude - p.longitude) / 2), 2)
+    )) AS distance_km,
+    ROW_NUMBER() OVER(
+      PARTITION BY p.plant_key 
+      ORDER BY 2 * 6371.0 * ASIN(...) ASC
+    ) as rank
+  FROM dwbi_catalog.gold_warehouse.dim_plant p
+  CROSS JOIN /*+ BROADCAST(s) */ dwbi_catalog.gold_warehouse.dim_weather_station s
+  WHERE p.latitude IS NOT NULL AND s.latitude IS NOT NULL AND s.station_key != -1
+)
+SELECT plant_key, station_key, distance_km FROM ranked_stations WHERE rank = 1;
+```
+Broadcasting `dim_weather_station` sends a copy of the station lookup table to each executor, eliminating distributed network shuffle across the Cartesian product and ensuring fast sub-second execution on Databricks Serverless Photon engines. Plants exceeding the 100 km threshold or lacking coordinates map to the `-1` default member with `NULL` distance.
 
 ---
 
