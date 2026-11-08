@@ -106,6 +106,8 @@ DWBI-Final-Project/
 ├── 03_ETL/
 │   └── config.py                     # ⭐ Master Lakehouse Configuration & Catalog Setup (Databricks)
 │
+├── 04_SQL/                           # Production Databricks SQL DDL (warehouse, staging, views, quality checks)
+│
 ├── 05_Analytics/                     # Analytical SQL, OLAP queries (ROLLUP/CUBE) & views
 │
 └── archived/                         # 🗄️ Preserved Historical Artifacts & Early Drafts

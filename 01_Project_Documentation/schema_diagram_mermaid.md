@@ -41,7 +41,7 @@ erDiagram
     }
 
     DIM_PLANT {
-        int plant_key PK "Surrogate Key"
+        bigint plant_key PK "Surrogate Key"
         int orispl_code UK "Master Business Key"
         varchar plant_name
         int utility_id
@@ -56,7 +56,7 @@ erDiagram
     }
 
     DIM_GENERATOR {
-        int generator_key PK "Surrogate Key"
+        bigint generator_key PK "Surrogate Key"
         int orispl_code FK
         varchar generator_id
         varchar prime_mover_code
@@ -69,7 +69,7 @@ erDiagram
     }
 
     DIM_BALANCING_AUTHORITY {
-        int ba_key PK "Surrogate Key"
+        bigint ba_key PK "Surrogate Key"
         varchar ba_code UK "PJM, CISO, ERCOT, MISO"
         varchar ba_name
         varchar region
@@ -77,7 +77,7 @@ erDiagram
     }
 
     DIM_WEATHER_STATION {
-        int station_key PK "Surrogate Key"
+        bigint station_key PK "Surrogate Key"
         varchar station_id UK "USAF-WBAN / GHCN"
         varchar station_name
         char state_code
@@ -89,9 +89,9 @@ erDiagram
     FACT_HOURLY_EMISSIONS_WEATHER {
         int date_key FK
         smallint hour_of_day PK
-        int plant_key FK
+        bigint plant_key FK
         varchar unit_id PK
-        int station_key FK
+        bigint station_key FK
         numeric gross_load_mw "Gross Output"
         numeric heat_input_mmbtu "Thermal Fuel Energy"
         numeric so2_mass_lbs "Sulfur Dioxide"
@@ -103,9 +103,9 @@ erDiagram
     }
 
     FACT_MONTHLY_PLANT_OPERATIONS {
-        int snapshot_key PK
+        bigint snapshot_key PK
         int month_start_date_key FK
-        int plant_key FK
+        bigint plant_key FK
         varchar prime_mover_code
         varchar energy_source_code
         numeric net_generation_mwh "Can be negative during outages"
@@ -119,7 +119,7 @@ erDiagram
     FACT_REGIONAL_GRID_DEMAND {
         int date_key FK
         smallint hour_of_day PK
-        int ba_key FK
+        bigint ba_key FK
         numeric demand_mw "Consumer Load"
         numeric demand_forecast_mw
         numeric net_gen_coal_mw
