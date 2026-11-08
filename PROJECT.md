@@ -63,7 +63,7 @@ Gate: 3 reporting views in gold_marts + OLAP queries execute without error.
 - [x] 4.3 DirectQuery Power BI semantic verification [S]
 
 ## Current
-All 4 core Medallion pipeline phases complete (49/49 unit tests green). Next step: Ready for live Databricks Serverless deployment, full dataset volume loads, and Power BI PBIX semantic modeling. Suggested model tier: mid.
+Stage 1 (Repo hygiene), Stage 2 (Loader correctness), Stage 3 (6-Category Data Quality Engine), and Stage 4 (Real-Data Downloader, Rubric Volume Gate >=100 Dims / >=10,000 Facts, Synthetic Defect Generator, and DEPLOY_RUNBOOK.md) complete. All 75 unit tests green. Next step: Stage 5 - Phase 1 document fixes (extend business questions to >=10, sync view mappings). Suggested model tier: mid.
 
 ## Open issues
 - None.

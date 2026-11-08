@@ -23,7 +23,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 # Add project root and 03_ETL to path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -33,28 +33,92 @@ if str(ETL_DIR) not in sys.path:
 
 import config
 import importlib
+import argparse
 
 bronze = importlib.import_module("01_bronze_ingestion")
 silver = importlib.import_module("02_silver_cleansing_and_scd")
 gold = importlib.import_module("03_gold_star_schema_facts")
 marts = importlib.import_module("04_gold_reporting_marts")
 dq = importlib.import_module("05_data_quality_validation")
+synth_gen = importlib.import_module("00_generate_synthetic_data")
 
 
-def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
+def check_rubric_volume_gate(dw) -> Tuple[bool, Dict[str, Any]]:
+    """
+    Asserts Phase 2 grading rubric volumes:
+      - Dimension gate: >= 100 rows in at least one business dimension (dim_plant or dim_generator, excluding -1 member).
+      - Fact gate: >= 10,000 rows in fact_hourly_emissions_weather.
+    Returns: (is_compliant: bool, metrics: dict)
+    """
+    plant_count = sum(1 for p in dw.dim_plant if p.get("plant_key") != -1)
+    generator_count = sum(1 for g in dw.dim_generator if g.get("generator_key") != -1)
+    ba_count = sum(1 for b in dw.dim_balancing_authority if b.get("ba_key") != -1)
+    station_count = sum(1 for s in dw.dim_weather_station if s.get("station_key") != -1)
+
+    f1_count = len(dw.fact_hourly_emissions_weather)
+    f2_count = len(dw.fact_monthly_plant_operations)
+    f3_count = len(dw.fact_regional_grid_demand)
+    total_facts = f1_count + f2_count + f3_count
+
+    dim_gate_passed = (plant_count >= 100 or generator_count >= 100)
+    fact_gate_passed = (f1_count >= 10000)
+    is_compliant = dim_gate_passed and fact_gate_passed
+
+    metrics = {
+        "dim_plant_count_excl_default": plant_count,
+        "dim_generator_count_excl_default": generator_count,
+        "dim_ba_count_excl_default": ba_count,
+        "dim_station_count_excl_default": station_count,
+        "fact_hourly_emissions_count": f1_count,
+        "fact_monthly_operations_count": f2_count,
+        "fact_regional_grid_count": f3_count,
+        "total_fact_rows": total_facts,
+        "dim_gate_passed": dim_gate_passed,
+        "fact_gate_passed": fact_gate_passed,
+        "is_rubric_compliant": is_compliant
+    }
+
+    if not is_compliant:
+        print("\n" + "!" * 80)
+        print(" [WARNING: RUBRIC VOLUME GATE NOT SATISFIED]")
+        print(" Current execution uses SAMPLE / TEST FIXTURES ONLY.")
+        print(f"   • dim_plant (excl -1):           {plant_count:<6} (Rubric requirement: >= 100 in at least 1 dim)")
+        print(f"   • dim_generator (excl -1):       {generator_count:<6} (Rubric requirement: >= 100 in at least 1 dim)")
+        print(f"   • fact_hourly_emissions_weather: {f1_count:<6} (Rubric requirement: >= 10,000 facts)")
+        print(f"   • fact_monthly_plant_operations: {f2_count:<6}")
+        print(f"   • fact_regional_grid_demand:     {f3_count:<6}")
+        print(" To run at full university grading rubric scale, execute with flag: --synthetic")
+        print("!" * 80 + "\n")
+    else:
+        print("\n" + "=" * 80)
+        print(" [RUBRIC VOLUME GATE PASSED: FULL SCALE DATA VERIFIED]")
+        print(f"   • dim_plant: {plant_count} | dim_generator: {generator_count} (>=100 requirement passed)")
+        print(f"   • fact_hourly_emissions_weather: {f1_count} (>=10,000 requirement passed)")
+        print(f"   • Total facts loaded: {total_facts}")
+        print("=" * 80 + "\n")
+
+    return is_compliant, metrics
+
+
+def run_full_lakehouse_pipeline(
+    spark_session=None,
+    use_synthetic: bool = False
+) -> Dict[str, Any]:
     """
     Executes the entire end-to-end Lakehouse pipeline and produces
     a consolidated multi-stage audit summary.
     """
-    master_batch_id = bronze.generate_batch_id("MASTER_PIPELINE")
+    execution_mode = "SYNTHETIC" if use_synthetic else "REAL_OR_FIXTURES"
+    master_batch_id = bronze.generate_batch_id("MASTER_PIPELINE" if not use_synthetic else "SYNTH_MASTER")
     pipeline_start = time.time()
     start_iso = datetime.now(timezone.utc).isoformat()
 
     print("=" * 80)
     print(f"DL3004 DWBI FINAL PROJECT: END-TO-END LAKEHOUSE PIPELINE")
-    print(f"Platform:     Databricks Serverless Cloud Lakehouse (dwbi_catalog)")
-    print(f"Master Batch: {master_batch_id}")
-    print(f"Started At:   {start_iso}")
+    print(f"Platform:       Databricks Serverless Cloud Lakehouse (dwbi_catalog)")
+    print(f"Execution Mode: {execution_mode}")
+    print(f"Master Batch:   {master_batch_id}")
+    print(f"Started At:     {start_iso}")
     print("=" * 80)
 
     stages_summary = []
@@ -86,20 +150,45 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
     # --------------------------------------------------------------------------
     # STAGE 1: Bronze Ingestion & Dynamic Header Scanning
     # --------------------------------------------------------------------------
-    print("\n>>> STAGE 1: Bronze Staging Ingestion (9 Federal Sources)...")
+    print(f"\n>>> STAGE 1: Bronze Staging Ingestion ({'Synthetic Rubric-Scale' if use_synthetic else '9 Federal Sources'})...")
     t1_start = time.time()
+    raw_synthetic_inputs = None
     try:
-        b_summary = bronze.run_bronze_ingestion_suite(
-            spark_session=spark_session,
-            master_batch_id=master_batch_id
-        )
-        t1_elapsed = round(time.time() - t1_start, 3)
-        stages_summary.append({
-            "stage": "Stage 1: Bronze Ingestion",
-            "status": "SUCCESS" if b_summary["total_sources_successful"] == b_summary["total_sources_attempted"] else "PARTIAL",
-            "records": f"{b_summary['total_records_ingested']} rows ({b_summary['total_sources_successful']}/9 sources)",
-            "elapsed_sec": t1_elapsed
-        })
+        if use_synthetic:
+            raw_synthetic_inputs = synth_gen.generate_synthetic_bronze_datasets(
+                batch_id=master_batch_id,
+                seed=42,
+                num_plants=125,
+                num_hourly_facts=12500
+            )
+            total_raw_rows = (
+                len(raw_synthetic_inputs["raw_plants"]) +
+                len(raw_synthetic_inputs["raw_generators"]) +
+                len(raw_synthetic_inputs["raw_weather_stations"]) +
+                len(raw_synthetic_inputs["raw_weather_hourly"]) +
+                len(raw_synthetic_inputs["raw_cems_hourly"]) +
+                len(raw_synthetic_inputs["raw_gen923_monthly"]) +
+                len(raw_synthetic_inputs["raw_grid_hourly"])
+            )
+            t1_elapsed = round(time.time() - t1_start, 3)
+            stages_summary.append({
+                "stage": "Stage 1: Bronze Ingestion",
+                "status": "SUCCESS",
+                "records": f"{total_raw_rows} synthetic raw rows generated",
+                "elapsed_sec": t1_elapsed
+            })
+        else:
+            b_summary = bronze.run_bronze_ingestion_suite(
+                spark_session=spark_session,
+                master_batch_id=master_batch_id
+            )
+            t1_elapsed = round(time.time() - t1_start, 3)
+            stages_summary.append({
+                "stage": "Stage 1: Bronze Ingestion",
+                "status": "SUCCESS" if b_summary["total_sources_successful"] == b_summary["total_sources_attempted"] else "PARTIAL",
+                "records": f"{b_summary['total_records_ingested']} rows ({b_summary['total_sources_successful']}/9 sources)",
+                "elapsed_sec": t1_elapsed
+            })
     except Exception as e:
         stages_summary.append({
             "stage": "Stage 1: Bronze Ingestion",
@@ -117,7 +206,8 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
     try:
         s_summary = silver.run_silver_conformance_suite(
             spark_session=spark_session,
-            master_batch_id=master_batch_id
+            master_batch_id=master_batch_id,
+            raw_inputs=raw_synthetic_inputs
         )
         t2_elapsed = round(time.time() - t2_start, 3)
         stages_summary.append({
@@ -143,7 +233,8 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
     try:
         g_summary = gold.run_gold_warehouse_pipeline(
             spark_session=spark_session,
-            master_batch_id=master_batch_id
+            master_batch_id=master_batch_id,
+            silver_data=s_summary.get("silver_data") if "s_summary" in locals() else None
         )
         t3_elapsed = round(time.time() - t3_start, 3)
         stages_summary.append({
@@ -218,6 +309,13 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
         })
         print(f"    ✗ Stage 5 Error: {e}")
 
+    # --------------------------------------------------------------------------
+    # RUBRIC SCALE VOLUME GATE EVALUATION
+    # --------------------------------------------------------------------------
+    volume_compliant, volume_metrics = False, {}
+    if "g_summary" in locals() and g_summary.get("dw"):
+        volume_compliant, volume_metrics = check_rubric_volume_gate(g_summary["dw"])
+
     total_pipeline_time = round(time.time() - pipeline_start, 3)
 
     # --------------------------------------------------------------------------
@@ -225,6 +323,7 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
     # --------------------------------------------------------------------------
     print("\n" + "=" * 80)
     print("MASTER LAKEHOUSE PIPELINE EXECUTION SUMMARY")
+    print(f"Execution Mode: {execution_mode} | Rubric Scale Compliant: {volume_compliant}")
     print("=" * 80)
     print(f"{'Stage Name':<32} | {'Status':<10} | {'Record Counts / Objects':<30} | {'Time (s)'}")
     print("-" * 80)
@@ -240,9 +339,9 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
         spark_session=spark_session,
         batch_id=master_batch_id,
         pipeline_step="FULL_LAKEHOUSE_PIPELINE",
-        source_system="MEDALLION_ORCHESTRATOR",
-        records_read=100,
-        records_inserted=100,
+        source_system=f"MEDALLION_ORCHESTRATOR_{execution_mode}",
+        records_read=volume_metrics.get("total_fact_rows", 100),
+        records_inserted=volume_metrics.get("total_fact_rows", 100),
         records_updated=0,
         records_rejected=0,
         execution_status="COMPLETED" if all_success else "PARTIAL_FAILURE",
@@ -252,6 +351,9 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
 
     return {
         "master_batch_id": master_batch_id,
+        "execution_mode": execution_mode,
+        "is_rubric_compliant": volume_compliant,
+        "volume_metrics": volume_metrics,
         "total_runtime_sec": total_pipeline_time,
         "pipeline_status": "COMPLETED" if all_success else "PARTIAL_FAILURE",
         "stages": stages_summary
@@ -259,6 +361,10 @@ def run_full_lakehouse_pipeline(spark_session=None) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="DL3004 Master Lakehouse Pipeline Runner")
+    parser.add_argument("--synthetic", action="store_true", help="Execute pipeline at university rubric scale using deterministic synthetic generator")
+    args = parser.parse_args()
+
     # If run in Databricks, detect spark
     spark = None
     try:
@@ -267,5 +373,5 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    run_full_lakehouse_pipeline(spark_session=spark)
+    run_full_lakehouse_pipeline(spark_session=spark, use_synthetic=args.synthetic)
 

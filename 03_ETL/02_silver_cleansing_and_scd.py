@@ -142,13 +142,17 @@ def record_cleaning_step(
     rows_changed: int,
     rows_removed: int,
     rows_quarantined: int,
+    rows_out: Optional[int] = None,
     spark_session=None
 ) -> Dict[str, Any]:
     """
-    Logs data cleansing metrics (in, changed, removed, quarantined)
+    Logs data cleansing metrics (in, changed, removed, quarantined, out)
     to dwbi_catalog.silver_conformed.cleaning_step_log in Databricks
     or to 02_Data/cleaned_data/cleaning_step_log.csv when running offline.
     """
+    if rows_out is None:
+        rows_out = rows_in - rows_removed - rows_quarantined
+
     entry = {
         "batch_id": batch_id,
         "step_name": step_name,
@@ -157,6 +161,7 @@ def record_cleaning_step(
         "rows_changed": rows_changed,
         "rows_removed": rows_removed,
         "rows_quarantined": rows_quarantined,
+        "rows_out": rows_out,
         "logged_at": datetime.now(timezone.utc).isoformat()
     }
     CLEANING_STEP_LOG.append(entry)
@@ -170,7 +175,7 @@ def record_cleaning_step(
         with open(csv_file, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "batch_id", "step_name", "target_table", "rows_in",
-                "rows_changed", "rows_removed", "rows_quarantined", "logged_at"
+                "rows_changed", "rows_removed", "rows_quarantined", "rows_out", "logged_at"
             ])
             if not file_exists:
                 writer.writeheader()
@@ -332,7 +337,7 @@ def conform_plants(
 
         raw_state = str(row.get("state", row.get("state_code", "")))
         std_state = (standardize_text(raw_state, mode="upper") or "")[:2]
-        raw_ba = row.get("balancing_auth_code", row.get("ba_code"))
+        raw_ba = row.get("balancing_authority_code") or row.get("balancing_auth_code") or row.get("ba_code")
         std_ba = standardize_text(raw_ba, mode="upper")
 
         if (std_name != raw_name or std_county != raw_county or 
@@ -370,6 +375,7 @@ def conform_plants(
         rows_changed=rows_changed,
         rows_removed=rows_removed,
         rows_quarantined=len(quarantined),
+        rows_out=len(conformed),
         spark_session=spark_session
     )
     return conformed, quarantined
@@ -484,6 +490,7 @@ def conform_generators_scd2(
                 "_batch_id": batch_id
             })
 
+    all_conformed = conformed_updates + conformed_inserts
     record_cleaning_step(
         batch_id=batch_id,
         step_name="CONFORM_GENERATORS_SCD2",
@@ -491,10 +498,9 @@ def conform_generators_scd2(
         rows_in=rows_in,
         rows_changed=rows_changed,
         rows_removed=rows_removed,
-        rows_quarantined=len(quarantined)
+        rows_quarantined=len(quarantined),
+        rows_out=len(all_conformed)
     )
-
-    all_conformed = conformed_updates + conformed_inserts
     return all_conformed, quarantined
 
 
@@ -543,13 +549,6 @@ def conform_monthly_generation(
         raw_fuel = row.get("reported_fuel_type_code") or row.get("reported_fuel_type") or row.get("energy_source_code") or ""
         fuel_code = standardize_text(raw_fuel, mode="upper") or ""
 
-        if std_name != raw_name or pm != str(raw_pm).strip() or fuel_code != str(raw_fuel).strip():
-            rows_changed += 1
-
-        # Extract year and month start key
-        year_val = try_cast_int(row.get("YEAR") or row.get("year")) or 2023
-        month_start_date_key = year_val * 10000 + 101  # January default snapshot
-
         # In EIA-923, each record contains monthly quantities and netgen
         qty_val = row.get("quantity_january")
         netgen_val = row.get("netgen_january")
@@ -557,6 +556,15 @@ def conform_monthly_generation(
         # Coerce sentinels
         qty_clean = try_cast_float(qty_val)
         netgen_clean = try_cast_float(netgen_val)
+        sentinel_coerced = is_sentinel(qty_val) or is_sentinel(netgen_val)
+
+        if (std_name != raw_name or pm != str(raw_pm).strip() or 
+            fuel_code != str(raw_fuel).strip() or sentinel_coerced):
+            rows_changed += 1
+
+        year_val = try_cast_int(row.get("YEAR") or row.get("year")) or 2023
+        month_val = try_cast_int(row.get("MONTH") or row.get("month")) or 1
+        month_start_date_key = year_val * 10000 + (month_val * 100) + 1
 
         # Estimate MMBtu if physical quantity is given (approx 1.0 MMBtu/unit)
         fuel_mmbtu = qty_clean if qty_clean is not None else 0.0
@@ -603,6 +611,7 @@ def conform_monthly_generation(
         rows_changed=rows_changed,
         rows_removed=rows_removed,
         rows_quarantined=len(quarantined),
+        rows_out=len(conformed),
         spark_session=spark_session
     )
     return conformed, quarantined
@@ -631,30 +640,37 @@ def conform_weather_hourly(
         station_id = standardize_text(raw_station, mode="upper") or "UNKNOWN"
         ts = row.get("timestamp_utc", row.get("timestamp", ""))
 
+        # Check for corrupt timestamps or missing station
+        if not ts or "BAD" in str(ts) or "CORRUPT" in str(ts) or station_id == "UNKNOWN":
+            q_rec = quarantine_record(
+                batch_id=batch_id,
+                source_system="NOAA-ISD",
+                source_table="bronze_staging.raw_noaa_isd_weather",
+                source_row_identifier=f"{station_id}_{ts}",
+                rejection_reason="INVALID_OR_CORRUPT_TIMESTAMP",
+                raw_payload=row,
+                spark_session=spark_session
+            )
+            quarantined.append(q_rec)
+            continue
+
         temp_raw = row.get("air_temperature_c", row.get("temperature", {}).get("value") if isinstance(row.get("temperature"), dict) else row.get("temperature"))
         wind_raw = row.get("wind_speed_mps", row.get("windSpeed", {}).get("value") if isinstance(row.get("windSpeed"), dict) else row.get("windSpeed"))
 
         temp_c = try_cast_float(temp_raw)
         wind_mps = try_cast_float(wind_raw)
 
-        if station_id != str(raw_station).strip() or is_sentinel(temp_raw) or is_sentinel(wind_raw):
-            rows_changed += 1
+        # Domain rule: -9999 is NOAA missing value sentinel, coerced to NULL
+        is_temp_sentinel = str(temp_raw).strip() in ["-9999", "-9999.0"] or is_sentinel(temp_raw)
+        is_wind_sentinel = str(wind_raw).strip() in ["-9999", "-9999.0"] or is_sentinel(wind_raw)
 
-        # Flag and quarantine extreme sensor corruption (e.g. raw string -9999 not coerced)
-        if str(temp_raw).strip() == "-9999" or str(wind_raw).strip() == "-9999":
-            q_rec = quarantine_record(
-                batch_id=batch_id,
-                source_system="NOAA-ISD",
-                source_table="bronze_staging.raw_noaa_isd_weather",
-                source_row_identifier=f"{station_id}_{ts}",
-                rejection_reason="NOAA_SENSOR_DROPOUT_MINUS_9999",
-                raw_payload=row,
-                spark_session=spark_session
-            )
-            quarantined.append(q_rec)
-            # We still record coerced NULL in conformed stream per domain rules
+        if is_temp_sentinel:
             temp_c = None
+        if is_wind_sentinel:
             wind_mps = None
+
+        if station_id != str(raw_station).strip() or is_temp_sentinel or is_wind_sentinel:
+            rows_changed += 1
 
         conformed.append({
             "station_id": station_id,
@@ -673,6 +689,7 @@ def conform_weather_hourly(
         rows_changed=rows_changed,
         rows_removed=rows_removed,
         rows_quarantined=len(quarantined),
+        rows_out=len(conformed),
         spark_session=spark_session
     )
     return conformed, quarantined
@@ -811,6 +828,7 @@ def conform_emissions_hourly(
         rows_changed=rows_changed,
         rows_removed=rows_removed,
         rows_quarantined=len(quarantined),
+        rows_out=len(conformed),
         spark_session=spark_session
     )
     return conformed, quarantined
@@ -930,6 +948,7 @@ def conform_grid_hourly(
         rows_changed=rows_changed,
         rows_removed=rows_removed,
         rows_quarantined=len(quarantined),
+        rows_out=len(conformed),
         spark_session=spark_session
     )
     return conformed, quarantined
@@ -941,7 +960,8 @@ def conform_grid_hourly(
 
 def run_silver_conformance_suite(
     spark_session=None,
-    master_batch_id: Optional[str] = None
+    master_batch_id: Optional[str] = None,
+    raw_inputs: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Runs the complete Silver Conformance, Data Quality Filtering, and SCD-2 Pipeline.
@@ -955,34 +975,44 @@ def run_silver_conformance_suite(
     print(f"STARTING MASTER SILVER CONFORMANCE PIPELINE [Batch: {master_batch_id}]")
     print("====================================================================")
 
-    # 1. Ingest Bronze baseline (or read from Bronze sample files)
-    raw_eia860_gen_headers, raw_gen = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_eia860_generator.csv",
-        scan_keys=["Plant Code"],
-        batch_id=master_batch_id
-    )
-    raw_eia860_plant_headers, raw_plants = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_eia860_plant.csv",
-        scan_keys=["Plant Code"],
-        batch_id=master_batch_id
-    )
-    raw_eia923_headers, raw_gen923 = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_eia923_monthly_generation.csv",
-        scan_keys=["Plant Id"],
-        batch_id=master_batch_id
-    )
-    raw_noaa_headers, raw_weather = bronze.extract_json_records(
-        "archived/scratch_api_tests/sample_data/sample_noaa_isd_weather.json",
-        batch_id=master_batch_id
-    )
-    _, raw_cems = bronze.extract_json_records(
-        "archived/scratch_api_tests/sample_data/sample_epa_hourly_emissions.json",
-        batch_id=master_batch_id
-    )
-    _, raw_grid = bronze.extract_json_records(
-        "archived/scratch_api_tests/sample_data/sample_eia930_hourly_grid.json",
-        batch_id=master_batch_id
-    )
+    # 1. Ingest Bronze baseline (use supplied raw inputs or read from sample files)
+    raw_weather_stations = None
+    if raw_inputs:
+        raw_gen = raw_inputs.get("raw_generators", [])
+        raw_plants = raw_inputs.get("raw_plants", [])
+        raw_gen923 = raw_inputs.get("raw_gen923_monthly", [])
+        raw_weather = raw_inputs.get("raw_weather_hourly", [])
+        raw_cems = raw_inputs.get("raw_cems_hourly", [])
+        raw_grid = raw_inputs.get("raw_grid_hourly", [])
+        raw_weather_stations = raw_inputs.get("raw_weather_stations")
+    else:
+        raw_eia860_gen_headers, raw_gen = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_eia860_generator.csv",
+            scan_keys=["Plant Code"],
+            batch_id=master_batch_id
+        )
+        raw_eia860_plant_headers, raw_plants = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_eia860_plant.csv",
+            scan_keys=["Plant Code"],
+            batch_id=master_batch_id
+        )
+        raw_eia923_headers, raw_gen923 = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_eia923_monthly_generation.csv",
+            scan_keys=["Plant Id"],
+            batch_id=master_batch_id
+        )
+        raw_noaa_headers, raw_weather = bronze.extract_json_records(
+            "archived/scratch_api_tests/sample_data/sample_noaa_isd_weather.json",
+            batch_id=master_batch_id
+        )
+        _, raw_cems = bronze.extract_json_records(
+            "archived/scratch_api_tests/sample_data/sample_epa_hourly_emissions.json",
+            batch_id=master_batch_id
+        )
+        _, raw_grid = bronze.extract_json_records(
+            "archived/scratch_api_tests/sample_data/sample_eia930_hourly_grid.json",
+            batch_id=master_batch_id
+        )
 
     # 2. Conform Plants Master
     print("-> Conforming Plants Master...")
@@ -1053,7 +1083,8 @@ def run_silver_conformance_suite(
             "silver_monthly_generation": silver_923,
             "silver_weather_hourly": silver_weather,
             "silver_emissions_hourly": silver_emissions,
-            "silver_grid_hourly": silver_grid
+            "silver_grid_hourly": silver_grid,
+            "raw_weather_stations": raw_weather_stations
         }
     }
 

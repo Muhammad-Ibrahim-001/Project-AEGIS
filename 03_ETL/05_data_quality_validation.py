@@ -494,8 +494,8 @@ def validate_row_count_reconciliation(
             rows_removed = entry.get("rows_removed", 0)
             rows_quarantined = entry.get("rows_quarantined", 0)
 
-            # Clean rows output from step
-            rows_out = rows_in - rows_removed - rows_quarantined
+            # Clean rows output from step (read from cleaning log entry if present)
+            rows_out = entry.get("rows_out") if entry.get("rows_out") is not None else (rows_in - rows_removed - rows_quarantined)
             discrepancy = abs(rows_in - (rows_out + rows_quarantined + rows_removed))
             total_unexplained_discrepancy += discrepancy
 

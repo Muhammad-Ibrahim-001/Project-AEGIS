@@ -591,7 +591,8 @@ def build_fact_regional_grid_demand(
 
 def run_gold_warehouse_pipeline(
     spark_session=None,
-    master_batch_id: Optional[str] = None
+    master_batch_id: Optional[str] = None,
+    silver_data: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Executes the complete Gold Warehouse loading pipeline:
@@ -611,34 +612,60 @@ def run_gold_warehouse_pipeline(
     dw = GoldDimensionWarehouse()
 
     # 2. Extract Conformed Silver Data
-    _, raw_plants = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_eia860_plant.csv",
-        scan_keys=["Plant Code"],
-        batch_id=master_batch_id
-    )
-    silver_plants, _ = silver.conform_plants(raw_plants, batch_id=master_batch_id)
+    if silver_data:
+        silver_plants = silver_data.get("silver_plants", [])
+        silver_generators = silver_data.get("silver_generators", [])
+        silver_grid = silver_data.get("silver_grid_hourly", [])
+        silver_emissions = silver_data.get("silver_emissions_hourly", [])
+        silver_weather = silver_data.get("silver_weather_hourly", [])
+        silver_monthly_gen = silver_data.get("silver_monthly_generation", [])
+        raw_stations = silver_data.get("raw_weather_stations")
+    else:
+        _, raw_plants = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_eia860_plant.csv",
+            scan_keys=["Plant Code"],
+            batch_id=master_batch_id
+        )
+        silver_plants, _ = silver.conform_plants(raw_plants, batch_id=master_batch_id)
+        _, raw_gen = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_eia860_generator.csv",
+            scan_keys=["Plant Code"],
+            batch_id=master_batch_id
+        )
+        silver_generators, _ = silver.conform_generators_scd2(raw_gen, batch_id=master_batch_id)
+        _, raw_grid = bronze.extract_json_records(
+            "archived/scratch_api_tests/sample_data/sample_eia930_hourly_grid.json",
+            batch_id=master_batch_id
+        )
+        silver_grid, _ = silver.conform_grid_hourly(raw_grid, batch_id=master_batch_id)
+        _, raw_cems = bronze.extract_json_records(
+            "archived/scratch_api_tests/sample_data/sample_epa_hourly_emissions.json",
+            batch_id=master_batch_id
+        )
+        silver_emissions, _ = silver.conform_emissions_hourly(raw_cems, batch_id=master_batch_id)
+        _, raw_weather = bronze.extract_json_records(
+            "archived/scratch_api_tests/sample_data/sample_noaa_isd_weather.json",
+            batch_id=master_batch_id
+        )
+        silver_weather, _ = silver.conform_weather_hourly(raw_weather, batch_id=master_batch_id)
+        _, raw_gen923 = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_eia923_monthly_generation.csv",
+            scan_keys=["Plant Id"],
+            batch_id=master_batch_id
+        )
+        silver_monthly_gen, _ = silver.conform_monthly_generation(raw_gen923, batch_id=master_batch_id)
+        raw_stations = None
+
     dw.populate_dim_plant(silver_plants)
-
-    _, raw_gen = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_eia860_generator.csv",
-        scan_keys=["Plant Code"],
-        batch_id=master_batch_id
-    )
-    silver_generators, _ = silver.conform_generators_scd2(raw_gen, batch_id=master_batch_id)
     dw.populate_dim_generator(silver_generators)
-
-    _, raw_grid = bronze.extract_json_records(
-        "archived/scratch_api_tests/sample_data/sample_eia930_hourly_grid.json",
-        batch_id=master_batch_id
-    )
-    silver_grid, _ = silver.conform_grid_hourly(raw_grid, batch_id=master_batch_id)
     dw.populate_dim_ba(silver_grid)
 
-    _, raw_stations = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_noaa_isd_station_history.csv",
-        scan_keys=["station name"],
-        batch_id=master_batch_id
-    )
+    if not raw_stations:
+        _, raw_stations = bronze.extract_csv_records(
+            "archived/scratch_api_tests/sample_data/sample_noaa_isd_station_history.csv",
+            scan_keys=["station name"],
+            batch_id=master_batch_id
+        )
     dw.populate_dim_weather_station(raw_stations)
 
     print(f"✓ Conformed Dimensions Populated:")
@@ -649,18 +676,6 @@ def run_gold_warehouse_pipeline(
     print(f"   • dim_weather_station: {len(dw.dim_weather_station)} stations (including default -1)")
 
     # 3. Build Multi-Grain Fact Tables (Consuming Conformed Silver Outputs)
-    _, raw_cems = bronze.extract_json_records(
-        "archived/scratch_api_tests/sample_data/sample_epa_hourly_emissions.json",
-        batch_id=master_batch_id
-    )
-    silver_emissions, _ = silver.conform_emissions_hourly(raw_cems, batch_id=master_batch_id)
-
-    _, raw_weather = bronze.extract_json_records(
-        "archived/scratch_api_tests/sample_data/sample_noaa_isd_weather.json",
-        batch_id=master_batch_id
-    )
-    silver_weather, _ = silver.conform_weather_hourly(raw_weather, batch_id=master_batch_id)
-
     fact_hourly = build_fact_hourly_emissions_weather(
         silver_emissions_records=silver_emissions,
         silver_weather_records=silver_weather,
@@ -669,12 +684,6 @@ def run_gold_warehouse_pipeline(
         spark_session=spark_session
     )
 
-    _, raw_gen923 = bronze.extract_csv_records(
-        "archived/scratch_api_tests/sample_data/sample_eia923_monthly_generation.csv",
-        scan_keys=["Plant Id"],
-        batch_id=master_batch_id
-    )
-    silver_monthly_gen, _ = silver.conform_monthly_generation(raw_gen923, batch_id=master_batch_id)
     fact_monthly = build_fact_monthly_plant_operations(silver_monthly_gen, dw)
 
     fact_grid = build_fact_regional_grid_demand(
@@ -720,12 +729,13 @@ def run_gold_warehouse_pipeline(
     total_fact_rows = len(fact_hourly) + len(fact_monthly) + len(fact_grid)
 
     # 5. Log Gold pipeline execution to etl_run_log
+    records_in = len(silver_emissions) + len(silver_monthly_gen) + len(silver_grid)
     bronze.log_etl_run(
         spark_session=spark_session,
         batch_id=master_batch_id,
         pipeline_step="GOLD_WAREHOUSE_POPULATION",
         source_system="KIMBALL_STAR_SCHEMA",
-        records_read=len(raw_cems) + len(raw_gen923) + len(raw_grid),
+        records_read=records_in,
         records_inserted=total_fact_rows,
         records_updated=0,
         records_rejected=0,
