@@ -266,3 +266,4 @@ To connect Microsoft Power BI Desktop to `dwbi_catalog.gold_marts`:
      - `vw_emissions_weather_correlation` (Page 2: Emissions vs Extreme Weather)
      - `vw_monthly_generation_mix` (Page 3: Generation Mix & Heat Rate Benchmarking)
 6. Load the views into Power BI and proceed with visual dashboard design.
+
