@@ -12,7 +12,7 @@ Raw federal energy datasets contain extensive administrative registration number
 ### Understanding the Counts
 * **Physical Raw Columns:** The exact number of individual fields/columns present in the source files (e.g., Form EIA-923 contains 97 physical columns, of which 72 represent a 12-month series across 6 metrics).
 * **Logical Concept Groups:** The high-level business categories (e.g., treating `Netgen January` through `Netgen December` as 1 logical measure group).
-* **Total Physical Pruning:** Across all 10 federal datasets, **270 out of 337 physical columns (80.1%) are removed** before reaching the Gold Dimensional Layer.
+* **Total Physical Pruning:** Across all 10 federal datasets, **247 out of 343 physical columns (72.0%) are excluded from the Gold Dimensional Layer** (235 permanently pruned + 12 preserved exclusively in Silver-layer bridge and data quality verification tables).
 
 ---
 
@@ -46,9 +46,9 @@ This quick-lookup table shows how each raw source maps through the Lakehouse tie
 | **EIA-930 (Grid Telemetry)** | 15 | 14 | — | 1 | 6.7% | `dim_balancing_authority` / `fact_regional_grid_demand` |
 | **EPA CAMPD (Hourly CEMS)** | 33 | 9 | 1 (`opTime`) | 23 | 72.7% | `fact_hourly_emissions_weather` |
 | **EPA–EIA Crosswalk** | 33 | 0 (Bridge only) | 7 | 26 | 78.8% | `silver_conformed.boiler_generator_bridge` |
-| **NOAA ISD Station History** | 11 | 6 | 1 (`ICAO`) | 4 | 36.4% | `dim_weather_station` |
+| **NOAA ISD Station History** | 11 | 6 (from 7 raw) | 1 (`ICAO`) | 3 | 36.4% | `dim_weather_station` |
 | **NOAA ISD Weather Observations** | 26 | 4 | — | 22 | 84.6% | `fact_hourly_emissions_weather` |
-| **TOTALS** | **343** | **86** | **12** | **245** | **71.4% Net Drop** | *(Over 80% physical reduction into final facts)* |
+| **TOTALS** | **343** | **96** | **12** | **235** | **72.0% Net Drop** | *(247 out of 343 raw columns excluded from Gold)* |
 
 ---
 
@@ -88,13 +88,14 @@ flowchart TD
         A6["Sector & Sector Name (2 cols)\nHigh-level industry categorization uniform across plants"]
     end
 
-    subgraph ADDR["🟥 Redundant / Not in Gold DDL (3 cols)"]
+    subgraph RED["🟥 Redundant / Normalized into dim_ba or Postal (4 cols)"]
         R1["Street Address\nPhysical entrance gate address; spatial joins use Lat/Lon"]
         R2["City\nRedundant; State + County covers geographical rollups"]
         R3["Zip\nPostal routing code; irrelevant to bulk transmission"]
+        R4["Balancing Authority Name\nRedundant; conformed in dim_balancing_authority.ba_name via ba_code"]
     end
 
-    subgraph SCOP["🟧 Outside Project Scope (19 cols)"]
+    subgraph SCOP["🟧 Outside Project Scope (18 cols)"]
         S1["Name of Water Source\nCooling water hydrology; not modeled in Gold facts"]
         S2["Ash Impoundment? / Lined? / Status (3 cols)\nSolid coal ash waste; outside atmospheric/power scope"]
         S3["Transmission System Owner / Owner ID / Owner State (3 cols)\nLocal wire owners; grid modeled at Balancing Authority grain"]
@@ -106,7 +107,7 @@ flowchart TD
 
     SRC --> KEEP
     SRC --> ADM
-    SRC --> ADDR
+    SRC --> RED
     SRC --> SCOP
 ```
 
@@ -137,20 +138,21 @@ flowchart TD
         R2["Plant Name, State, County\nStored in dim_plant; violates 3NF to duplicate at unit grain"]
     end
 
-    subgraph ADM["🟨 Administrative / Operational Design (7 cols)"]
+    subgraph ADM["🟨 Administrative / Operational Design (9 cols)"]
         A1["Ownership (S/J/W)\nJoint-venture corporate ownership equity shares"]
-        A2["Sector & Sector Name\nConstant utility sector classifications"]
+        A2["Sector & Sector Name (2 cols)\nConstant utility sector classifications"]
         A3["Synchronized to Transmission Grid\nAll operational units in scope are grid-synchronized"]
         A4["RTO-ISO LMP Node & FERC Designation (2 cols)\nWholesale nodal pricing nodes; outside physical dispatch scope"]
         A5["Topping or Bottoming\nCHP thermodynamic steam cycle arrangement"]
         A6["Unit Code\nCombined-cycle grouping; resolved via Silver bridge"]
+        A7["CHP System Association\nFacility-level flag already tracked in dim_plant.is_combined_heat_power"]
     end
 
-    subgraph FUTPL["🟦 Future-Planned Values (18 physical cols)"]
+    subgraph FUTPL["🟦 Future-Planned Values (17 physical cols)"]
         F1["Planned Retirement Month\nYear is sufficient for fleet planning"]
         F2["Planned Net Summer/Winter Uprates & Derates (4 cols)\nSpeculative future modifications (Scope = 2021-2024 actuals)"]
         F3["Planned Uprate / Derate Month & Year (4 cols)\nSpeculative modification dates"]
-        F4["Planned New Prime Mover, Fuel, Capacity, Repower Date (6 cols)\nSpeculative repowering engineering plans"]
+        F4["Planned New Prime Mover, Fuel, Capacity, Repower Dates (5 cols)\nSpeculative repowering engineering plans"]
         F5["Other Planned Modifications?, Month, Year (3 cols)\nUncommitted future maintenance overhauls"]
     end
 
@@ -161,14 +163,15 @@ flowchart TD
         C4["Uprate or Derate Completed Flag, Month, Year (3 cols)\nHistorical modifications captured dynamically via SCD Type 2"]
     end
 
-    subgraph TECH["🟪 Engineering Sub-Classifications (16 physical cols)"]
-        T1["Fluidized Bed, Pulverized Coal, Stoker, Other Combustion (4 cols)\nBoiler combustion designs; prime_mover_code (ST) captures type"]
-        T2["Subcritical, Supercritical, Ultrasupercritical (3 cols)\nSteam pressure metallurgy; heat rate efficiency measures this directly"]
-        T3["Solid Fuel Gasification (IGCC) & Carbon Capture (CCS) (2 cols)\nNiche technologies; CEMS measures actual emissions directly"]
-        T4["Duct Burners & HRSG Bypass Damper (2 cols)\nSupplemental firing flags; fuel input measured directly in facts"]
-        T5["Turbines or Hydrokinetic Buoys\nEquipment count; project models generation output (MWh)"]
-        T6["Time from Cold Shutdown to Full Load\nStartup category; hourly load curves show ramp rates"]
-        T7["Operating Month\nCommissioning year provides sufficient temporal grain"]
+    subgraph TECH["🟪 Engineering Sub-Classifications (15 physical cols)"]
+        T1["Technology Text Description\nprime_mover_code and primary_energy_source capture classification"]
+        T2["Fluidized Bed, Pulverized Coal, Stoker, Other Combustion (4 cols)\nBoiler combustion designs; prime_mover_code (ST) captures type"]
+        T3["Subcritical, Supercritical, Ultrasupercritical (3 cols)\nSteam pressure metallurgy; heat rate efficiency measures this directly"]
+        T4["Solid Fuel Gasification (IGCC) & Carbon Capture (CCS) (2 cols)\nNiche technologies; CEMS measures actual emissions directly"]
+        T5["Duct Burners & HRSG Bypass Damper (2 cols)\nSupplemental firing flags; fuel input measured directly in facts"]
+        T6["Turbines or Hydrokinetic Buoys\nEquipment count; project models generation output (MWh)"]
+        T7["Time from Cold Shutdown to Full Load\nStartup category; hourly load curves show ramp rates"]
+        T8["Operating Month\nCommissioning year provides sufficient temporal grain"]
     end
 
     subgraph FUELS["🟧 Secondary & Startup Fuels (12 physical cols)"]
@@ -443,14 +446,14 @@ flowchart TD
 ### Source 9 — NOAA ISD Station History (`isd-history.csv`)
 * **Ingestion Target:** Bronze table `bronze_staging.raw_noaa_isd_station_history`
 * **Destination Entity:** `gold_warehouse.dim_weather_station`
-* **Column Breakdown:** 11 Total $\longrightarrow$ **6 Kept in Gold**, **1 Kept in Silver**, **4 Removed** (36.4% Pruning)
+* **Column Breakdown:** 11 Total $\longrightarrow$ **6 Kept in Gold** (projected from 7 raw fields), **1 Kept in Silver**, **3 Removed** (36.4% Excluded from Gold)
 
 ```mermaid
 flowchart LR
     SRC["📄 NOAA Station History (11 cols)"]
 
-    subgraph KEEP["✅ KEPT — Map to dim_weather_station (6 cols)"]
-        K1["USAF + WBAN → station_id (Natural Key)"]
+    subgraph KEEP["✅ KEPT — Map to dim_weather_station (6 attributes from 7 raw cols)"]
+        K1["USAF + WBAN (2 raw cols) → station_id (Natural Key)"]
         K2["STATION NAME → station_name"]
         K3["STATE → state_code"]
         K4["LAT → latitude (WGS 84)"]
@@ -462,10 +465,9 @@ flowchart LR
         S1["ICAO (4-letter airport code e.g. KMOB)\nUsed during Silver spatial matching; not in Gold DDL"]
     end
 
-    subgraph REM["🟨 Removed (4 cols)"]
+    subgraph REM["🟨 Removed (3 cols)"]
         R1["CTRY (Country Code)\nDataset filtered to US-only stations during Bronze ingest;\nconstant value ('US') provides zero analytical variance"]
         R2["BEGIN & END (2 cols)\nEarliest and latest observation dates recorded (often 1930s);\nused in Silver to confirm active status during 2021-2024"]
-        R3["ICAO (from Gold DDL perspective)\nSurrogate key station_key + natural key station_id suffice"]
     end
 
     SRC --> KEEP
@@ -539,7 +541,7 @@ dim_plant_df = (
         col("Longitude").cast("decimal(9,6)").alias("longitude"),
         col("State").alias("state_code"),
         col("County").alias("county_name"),
-        col("Balancing Authority Code").alias("ba_code"),
+        col("Balancing Authority Code").alias("balancing_authority_code"),  # matches config.py (or ba_code in early DDL)
         when(col("FERC Cogeneration Status") == "Y", True).otherwise(False).alias("is_combined_heat_power")
     )
     .dropDuplicates(["orispl_code"])
