@@ -20,3 +20,4 @@ dependencies = [
 dev = [
     "duckdb>=1.0.0",
 ]
+

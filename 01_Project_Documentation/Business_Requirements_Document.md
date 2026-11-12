@@ -94,14 +94,14 @@ Below are the 10 formal analytical business questions driving the dimensional la
 * **Grain:** Hourly per balancing authority during flagged climatic freeze and peak dates (`date_key`, `hour_of_day`, `ba_key`).
 * **Matching Reporting View / Query:** `gold_marts.vw_grid_stress` & OLAP Query 10 (Climatic Stress Grid Dispatch & Reserve Margin Window Analysis).
 
-### BQ9: Peak Grid Demand vs. Thermal Dispatch by Balancing Authority
-* **Question Statement:** During the top 5% peak demand hours in each balancing authority, what proportion of total generation is supplied by rapid-start natural gas and coal peakers versus renewables?
-* **Business Intent:** Peaker plant dependency analysis, grid reserve margin compliance, and capacity market remuneration modeling.
-* **Fact Table:** `gold_warehouse.fact_regional_grid_demand`
-* **Dimension Tables:** `dim_balancing_authority`, `dim_date`
-* **Measures:** `demand_mw` (Semi-Additive), `net_gen_coal_mw` (Additive), `net_gen_gas_mw` (Additive), `peaker_thermal_share_pct` (Calculated Ratio).
-* **Grain:** Hourly per balancing authority (`date_key`, `hour_of_day`, `ba_key`).
-* **Matching Reporting View / Query:** `gold_marts.vw_grid_stress` & OLAP Query 11 (Balancing Authority Peak Demand Slicing & Thermal Fuel Mix Analysis).
+### BQ9: Thermal Efficiency Degradation & Out-of-Bounds Heat Rate Operating Frequency by Plant
+* **Question Statement:** How many operating months per calendar year do thermal power plants run at degraded thermodynamic efficiencies exceeding standard technology heat-rate thresholds (CCGT > 10,000 Btu/kWh, Coal Steam > 14,000 Btu/kWh, Peakers > 16,000 Btu/kWh), and what is the associated fuel consumption penalty?
+* **Business Intent:** Identifies generating units suffering boiler fouling, cooling tower derating, or severe compressor degradation, prioritizing thermal units for maintenance overhaul, heat rate improvement, or retirement.
+* **Fact Tables:** `gold_warehouse.fact_monthly_plant_operations`, `gold_warehouse.fact_hourly_emissions_weather`
+* **Dimension Tables:** `dim_plant`, `dim_date`
+* **Measures:** `net_generation_mwh` (Additive), `fuel_consumed_mmbtu` (Additive), `avg_heat_rate_btu_kwh` (Non-Additive Weighted Avg), `degraded_efficiency_months_count` (Additive), `degraded_operating_pct` (Calculated Ratio).
+* **Grain:** Monthly per generating plant, prime mover, and energy source (`month_start_date_key`, `plant_key`, `prime_mover_code`, `energy_source_code`).
+* **Matching Reporting View / Query:** `gold_marts.vw_plant_performance` & OLAP Query 11 (Thermal Efficiency Degradation & Heat-Rate Exceedance Frequency).
 
 ### BQ10: Multi-Year Generation Trends & Decarbonization by Prime Mover
 * **Question Statement:** How has the generation mix, total net generation volume, and weighted heat rate transitioned across prime mover technologies (Combined Cycle, Steam Turbine, Gas Turbine, Wind, Solar) over the 2021-2024 compliance window?

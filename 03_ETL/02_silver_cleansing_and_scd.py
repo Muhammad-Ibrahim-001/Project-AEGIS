@@ -393,7 +393,7 @@ def conform_generators_scd2(
     - Monitored Attributes: operating_status, nameplate_capacity_mw.
     - If status or capacity changes, closes previous version (valid_to = now, is_current = False)
       and opens new version (valid_from = now, valid_to = '9999-12-31 23:59:59', is_current = True).
-    - Deduplicates on (orispl_code, generator_id) within incoming batch, keeping latest.
+    - Deduplicates on (orispl_code, generator_id) within initial baseline batch, keeping latest.
     - Standardizes codes and text to uppercase.
     """
     effective_timestamp = effective_timestamp or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -401,81 +401,103 @@ def conform_generators_scd2(
     rows_in = len(raw_generators)
     rows_changed = 0
     rows_removed = 0
+    quarantined = []
 
-    # Index existing current records by (orispl, gen_id)
+    # Index existing current and historical records when provided
     existing_map = {}
+    historical_records = []
     if existing_dim_records:
         for rec in existing_dim_records:
             if rec.get("is_current", True):
                 k = (rec.get("orispl_code"), str(rec.get("generator_id")).strip().upper())
                 existing_map[k] = dict(rec)
+            else:
+                historical_records.append(dict(rec))
 
-    # First pass: Deduplicate incoming batch by natural key (orispl, gen_id), keeping latest
-    deduped_raw = {}
-    quarantined = []
-    for row in raw_generators:
+    # Baseline pass: deduplicate incoming batch keeping latest
+    # Update pass: process sequentially so chronological transitions (OP -> SB -> RE) are preserved
+    if not existing_dim_records:
+        deduped_raw = {}
+        for row in raw_generators:
+            raw_code = row.get("plant_code") or row.get("plant_id")
+            orispl = try_cast_int(raw_code)
+            gen_id = standardize_text(row.get("generator_id", ""), mode="upper")
+
+            if orispl is None or not gen_id:
+                q_rec = quarantine_record(
+                    batch_id=batch_id,
+                    source_system="EIA-860",
+                    source_table="bronze_staging.raw_eia860_generator",
+                    source_row_identifier=f"{raw_code}_{gen_id}",
+                    rejection_reason="MISSING_GENERATOR_NATURAL_KEY",
+                    raw_payload=row
+                )
+                quarantined.append(q_rec)
+                continue
+
+            nat_key = (orispl, gen_id)
+            if nat_key in deduped_raw:
+                rows_removed += 1
+            deduped_raw[nat_key] = row
+        update_rows = list(deduped_raw.values())
+    else:
+        update_rows = []
+        for row in raw_generators:
+            raw_code = row.get("plant_code") or row.get("plant_id")
+            orispl = try_cast_int(raw_code)
+            gen_id = standardize_text(row.get("generator_id", ""), mode="upper")
+            if orispl is None or not gen_id:
+                q_rec = quarantine_record(
+                    batch_id=batch_id,
+                    source_system="EIA-860",
+                    source_table="bronze_staging.raw_eia860_generator",
+                    source_row_identifier=f"{raw_code}_{gen_id}",
+                    rejection_reason="MISSING_GENERATOR_NATURAL_KEY",
+                    raw_payload=row
+                )
+                quarantined.append(q_rec)
+                continue
+            update_rows.append(row)
+
+    conformed_updates = list(historical_records)
+
+    for row in update_rows:
         raw_code = row.get("plant_code") or row.get("plant_id")
         orispl = try_cast_int(raw_code)
         gen_id = standardize_text(row.get("generator_id", ""), mode="upper")
-
-        if orispl is None or not gen_id:
-            q_rec = quarantine_record(
-                batch_id=batch_id,
-                source_system="EIA-860",
-                source_table="bronze_staging.raw_eia860_generator",
-                source_row_identifier=f"{raw_code}_{gen_id}",
-                rejection_reason="MISSING_GENERATOR_NATURAL_KEY",
-                raw_payload=row
-            )
-            quarantined.append(q_rec)
-            continue
-
         nat_key = (orispl, gen_id)
-        if nat_key in deduped_raw:
-            rows_removed += 1
-        deduped_raw[nat_key] = row
 
-    conformed_updates = []
-    conformed_inserts = []
-
-    for (orispl, gen_id), row in deduped_raw.items():
         raw_status = row.get("status", row.get("operating_status", "OP"))
         std_status = standardize_text(raw_status, mode="upper") or "OP"
         capacity_mw = try_cast_float(row.get("nameplate_capacity_mw"))
         pm = standardize_text(row.get("prime_mover", row.get("prime_mover_code", "")), mode="upper") or ""
         energy = standardize_text(row.get("energy_source_1", row.get("primary_energy_source", "")), mode="upper") or ""
+        row_effective_time = row.get("valid_from") or effective_timestamp
 
-        if std_status != raw_status or pm != row.get("prime_mover") or energy != row.get("energy_source_1"):
-            rows_changed += 1
-
-        nat_key = (orispl, gen_id)
         if nat_key in existing_map:
             prior = existing_map[nat_key]
             prior_status = str(prior.get("operating_status", "")).strip().upper()
             prior_cap = try_cast_float(prior.get("nameplate_capacity_mw"))
 
-            # Check if tracked attributes evolved
             if prior_status != std_status or (capacity_mw is not None and prior_cap != capacity_mw):
-                # Close the prior version (SCD-2 Expiration)
-                prior["valid_to"] = effective_timestamp
+                rows_changed += 1
+                prior["valid_to"] = row_effective_time
                 prior["is_current"] = False
-                conformed_updates.append(prior)
+                conformed_updates.append(dict(prior))
 
-                # Insert new active version
                 new_version = dict(prior)
                 new_version["operating_status"] = std_status
-                new_version["nameplate_capacity_mw"] = capacity_mw
-                new_version["valid_from"] = effective_timestamp
+                if capacity_mw is not None:
+                    new_version["nameplate_capacity_mw"] = capacity_mw
+                new_version["valid_from"] = row_effective_time
                 new_version["valid_to"] = open_infinity
                 new_version["is_current"] = True
                 new_version["_batch_id"] = batch_id
-                conformed_inserts.append(new_version)
-            else:
-                # No tracked changes: keep current
-                conformed_inserts.append(prior)
+                existing_map[nat_key] = new_version
         else:
-            # First time seeing this generator: Seed initial active version
-            conformed_inserts.append({
+            if std_status != raw_status or pm != row.get("prime_mover") or energy != row.get("energy_source_1"):
+                rows_changed += 1
+            existing_map[nat_key] = {
                 "orispl_code": orispl,
                 "generator_id": gen_id,
                 "prime_mover_code": pm,
@@ -484,22 +506,25 @@ def conform_generators_scd2(
                 "operating_status": std_status,
                 "operating_year": try_cast_int(row.get("operating_year")),
                 "planned_retirement_year": try_cast_int(row.get("retirement_year", row.get("planned_retirement_year"))),
-                "valid_from": effective_timestamp,
+                "valid_from": row_effective_time,
                 "valid_to": open_infinity,
                 "is_current": True,
                 "_batch_id": batch_id
-            })
+            }
 
+    conformed_inserts = list(existing_map.values())
     all_conformed = conformed_updates + conformed_inserts
+    rows_out_step = (rows_in - rows_removed - len(quarantined)) if existing_dim_records else len(all_conformed)
     record_cleaning_step(
         batch_id=batch_id,
-        step_name="CONFORM_GENERATORS_SCD2",
+        step_name="CONFORM_GENERATORS_SCD2_UPDATES" if existing_dim_records else "CONFORM_GENERATORS_SCD2",
         target_table="silver_generators",
         rows_in=rows_in,
         rows_changed=rows_changed,
         rows_removed=rows_removed,
         rows_quarantined=len(quarantined),
-        rows_out=len(all_conformed)
+        rows_out=rows_out_step,
+        spark_session=spark_session if "spark_session" in locals() else None
     )
     return all_conformed, quarantined
 
@@ -1021,7 +1046,19 @@ def run_silver_conformance_suite(
 
     # 3. Conform Generators (SCD Type 2 Lifecycle)
     print("-> Conforming Generators with SCD Type 2 tracking...")
-    silver_generators, q_gen = conform_generators_scd2(raw_gen, batch_id=master_batch_id)
+    silver_generators, q_gen = conform_generators_scd2(
+        raw_gen,
+        batch_id=master_batch_id,
+        effective_timestamp="2021-01-01 00:00:00"
+    )
+    raw_gen_updates = raw_inputs.get("raw_generator_updates", []) if raw_inputs else []
+    if raw_gen_updates:
+        silver_generators, q_gen_up = conform_generators_scd2(
+            raw_gen_updates,
+            batch_id=master_batch_id,
+            existing_dim_records=silver_generators
+        )
+        q_gen.extend(q_gen_up)
     print(f"   ✓ Conformed Generators: {len(silver_generators)} | Quarantined: {len(q_gen)}")
 
     # 4. Conform Monthly Generation & Validate Heat Rates

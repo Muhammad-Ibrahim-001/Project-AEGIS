@@ -55,7 +55,7 @@ See [Business_Requirements_Document.md](Business_Requirements_Document.md) for f
 | **BQ6** | Cross-agency generation reconciliation (EPA Gross vs EIA Net) & auxiliary ratio | `fact_hourly_emissions_weather`, `fact_monthly_plant_operations` | DQ `ACC_AUX_LOAD_RECON` & OLAP Query 8 | Page 2 |
 | **BQ7** | Generator asset lifecycle and SCD Type 2 decommissioning tracking | `dim_generator` (SCD Type 2) | OLAP Query 9 | Page 2 |
 | **BQ8** | Extreme climatic stress (winter freeze / summer heat) vs. grid dispatch & deficits | `fact_regional_grid_demand` | `vw_grid_stress` & OLAP Query 10 | Page 3 |
-| **BQ9** | Balancing authority peak demand slicing (top 5% hours) vs. thermal peaker dispatch | `fact_regional_grid_demand` | `vw_grid_stress` & OLAP Query 11 | Page 3 |
+| **BQ9** | Thermal efficiency degradation & heat-rate exceedance frequency by plant | `fact_monthly_plant_operations`, `fact_hourly_emissions_weather` | `vw_plant_performance` & OLAP Query 11 | Page 2 |
 | **BQ10**| Multi-year generation trends and decarbonization by prime mover technology | `fact_monthly_plant_operations` | `vw_monthly_generation_mix` & OLAP Query 3 | Page 2 |
 
 ## 6. Dimensional Architecture, Grains & Hierarchies

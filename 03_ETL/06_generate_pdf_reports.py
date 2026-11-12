@@ -946,10 +946,11 @@ def build_data_quality_report(output_pdf_path: Optional[Path] = None) -> Path:
             # Provide plain-language engineering explanations
             if cid == "ACC_AUX_LOAD_RECON":
                 explanation = (
-                    f"The fleet-average auxiliary load ratio is {metric} (9.75%), which sits within nominal bounds (1% to 16%). "
-                    "However, a small number of maintenance-outage plant-months report zero net generation while auxiliary load draws power, "
-                    "causing individual plant auxiliary load ratios to briefly spike outside the strict bounding envelope. "
-                    "This represents valid thermodynamic physical behavior during maintenance shutdowns."
+                    f"Fleet-average auxiliary ratio: {metric} (9.75%), nominally within {thr}. "
+                    "Evaluation rule in code: status = 'PASS' if (-0.05 <= min_aux and max_aux <= 0.25) else 'WARN'. "
+                    "Discrepancy reconciliation: Exactly 1 of 20 evaluated plant-months (Plant 1002 Miller, Jan 2023) spiked to ratio 1.0 "
+                    "due to synthetic defect #4 injecting missing-value sentinel 'NM' into EIA-923 net generation (coerced to 0.0 MWh in Silver), "
+                    "while all other 19 plant-months conformed to standard 0.0500 (5.0%)."
                 )
             elif "COMPLETENESS" in cid:
                 explanation = f"Null ratio of {metric}% exceeds target threshold {thr}. Handled gracefully via ANSI TRY_CAST."
@@ -1155,3 +1156,4 @@ def generate_all_reports() -> Dict[str, Path]:
 
 if __name__ == "__main__":
     generate_all_reports()
+

@@ -240,6 +240,101 @@ def generate_synthetic_bronze_datasets(
         "injected_at": timestamp_now
     })
 
+    # SCD-2 Historical Generator Status Transitions (N=5 generators with 7 transition events)
+    raw_generator_updates = [
+        # Generator 1: Plant 1000 Gen 1 (OP -> SB -> RE)
+        {
+            "plant_code": "1000",
+            "generator_id": "1",
+            "status": "SB",
+            "prime_mover": "CC",
+            "energy_source_1": "NG",
+            "nameplate_capacity_mw": "450.0",
+            "valid_from": "2022-07-01 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        },
+        {
+            "plant_code": "1000",
+            "generator_id": "1",
+            "status": "RE",
+            "prime_mover": "CC",
+            "energy_source_1": "NG",
+            "nameplate_capacity_mw": "450.0",
+            "valid_from": "2023-12-31 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        },
+        # Generator 2: Plant 1001 Gen 1 (OP -> RE)
+        {
+            "plant_code": "1001",
+            "generator_id": "1",
+            "status": "RE",
+            "prime_mover": "CT",
+            "energy_source_1": "NG",
+            "nameplate_capacity_mw": "180.0",
+            "valid_from": "2023-06-30 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        },
+        # Generator 3: Plant 1002 Gen 1 (OP -> SB)
+        {
+            "plant_code": "1002",
+            "generator_id": "1",
+            "status": "SB",
+            "prime_mover": "CA",
+            "energy_source_1": "NG",
+            "nameplate_capacity_mw": "220.0",
+            "valid_from": "2022-12-31 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        },
+        # Generator 4: Plant 1003 Gen 1 (OP -> RE)
+        {
+            "plant_code": "1003",
+            "generator_id": "1",
+            "status": "RE",
+            "prime_mover": "ST",
+            "energy_source_1": "BIT",
+            "nameplate_capacity_mw": "600.0",
+            "valid_from": "2024-03-31 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        },
+        # Generator 5: Plant 1004 Gen 1 (OP -> SB -> RE)
+        {
+            "plant_code": "1004",
+            "generator_id": "1",
+            "status": "SB",
+            "prime_mover": "ST",
+            "energy_source_1": "SUB",
+            "nameplate_capacity_mw": "500.0",
+            "valid_from": "2023-01-15 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        },
+        {
+            "plant_code": "1004",
+            "generator_id": "1",
+            "status": "RE",
+            "prime_mover": "ST",
+            "energy_source_1": "SUB",
+            "nameplate_capacity_mw": "500.0",
+            "valid_from": "2024-06-30 00:00:00",
+            "_batch_id": batch_id,
+            "_source_file": "synthetic_eia860_generator_updates.csv"
+        }
+    ]
+
+    injected_defects.append({
+        "batch_id": batch_id,
+        "defect_type": "SCD2_STATUS_TRANSITIONS",
+        "source_table": "raw_eia860_generator",
+        "injected_count": 5,
+        "expected_action": "SCD2_HISTORICAL_VERSIONS_CREATED",
+        "injected_at": timestamp_now
+    })
+
     # --------------------------------------------------------------------------
     # 3. GENERATE RAW NOAA WEATHER STATIONS & HOURLY OBSERVATIONS
     # --------------------------------------------------------------------------
@@ -597,6 +692,7 @@ def generate_synthetic_bronze_datasets(
     return {
         "raw_plants": raw_plants,
         "raw_generators": raw_generators,
+        "raw_generator_updates": raw_generator_updates,
         "raw_weather_stations": raw_weather_stations,
         "raw_weather_hourly": raw_weather_hourly,
         "raw_cems_hourly": raw_cems_hourly,

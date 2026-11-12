@@ -66,11 +66,11 @@ class TestStage5BusinessQuestions(unittest.TestCase):
     def test_specific_required_topics_covered(self):
         """Asserts coverage of the 3 specific topics required by the Stage 5 spec:
         - Extreme weather events vs regional grid dispatch / reserve deficits (BQ8)
-        - Peak grid demand vs thermal dispatch by balancing authority (BQ9)
+        - Plant thermal efficiency degradation and heat-rate exceedance frequency (BQ9)
         - Multi-year generation trends and decarbonization by prime mover (BQ10)
         """
         self.assertIn("BQ8: Extreme Climatic Stress vs. Regional Grid Dispatch & Reserve Deficits", self.brd_content)
-        self.assertIn("BQ9: Peak Grid Demand vs. Thermal Dispatch by Balancing Authority", self.brd_content)
+        self.assertIn("BQ9: Thermal Efficiency Degradation & Out-of-Bounds Heat Rate Operating Frequency by Plant", self.brd_content)
         self.assertIn("BQ10: Multi-Year Generation Trends & Decarbonization by Prime Mover", self.brd_content)
 
     def test_all_referenced_views_exist_in_sql_and_python(self):

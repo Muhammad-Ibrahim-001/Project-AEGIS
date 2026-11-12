@@ -100,7 +100,7 @@ The scenario is an energy analytics group that supports three audiences:
 | BQ6 | Do EPA gross generation and EIA net generation reconcile for each plant? | Hourly emissions, monthly operations | Audit checks & OLAP Query 8 | 2 |
 | BQ7 | How do generator operating status and capacity change over time (for example, Operating to Retired)? | `dim_generator` (SCD Type 2) | Generator history & OLAP Query 9 | 2 |
 | BQ8 | How do extreme climatic events (deep winter freezes and summer heat waves) trigger grid demand forecast errors, thermal peaking ramp-ups, and regional reserve deficits? | Grid demand, hourly emissions | `vw_grid_stress` & OLAP Query 10 | 3 |
-| BQ9 | During the top 5% peak demand hours within each balancing authority, what proportion of generation is supplied by rapid-start thermal peakers versus baseload and renewables? | Grid demand | `vw_grid_stress` & OLAP Query 11 | 3 |
+| BQ9 | How many operating months per year do power plants run at degraded thermodynamic heat rates exceeding standard bounds, and what is the penalty? | Monthly operations, hourly emissions | `vw_plant_performance` & OLAP Query 11 | 2 |
 | BQ10 | How has the monthly generation mix, total net generation volume, and weighted heat rate transitioned across prime mover technologies over the 2021-2024 compliance period? | Monthly operations | `vw_monthly_generation_mix` & OLAP Query 3 | 2 |
 
 ### 2.3 Success Criteria

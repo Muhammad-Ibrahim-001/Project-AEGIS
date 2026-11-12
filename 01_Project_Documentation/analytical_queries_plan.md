@@ -89,9 +89,9 @@ Rather than legacy Hive directory partitioning (`/year=2023/month=01`), tables u
   * `AVG(g.demand_mw) OVER (PARTITION BY g.ba_key ORDER BY g.date_key, g.hour_of_day ROWS BETWEEN 23 PRECEDING AND CURRENT ROW)` (24-hour rolling average).
   * `DENSE_RANK() OVER (PARTITION BY g.ba_key, d.is_winter_freeze, d.is_summer_peak ORDER BY (demand_mw - demand_forecast_mw) DESC)`.
 
-### Query 11: Top 5% Peak Demand Hours vs Thermal Peaker Fuel Mix (BQ9)
-* **Goal:** Isolate top 5% peak demand hours within each balancing authority to measure peaker gas/coal dependency.
-* **SQL Window Clause:**
-  * `PERCENT_RANK() OVER (PARTITION BY g.ba_key ORDER BY g.demand_mw ASC) AS demand_percentile`
-  * Outer query filters `WHERE demand_percentile >= 0.95`.
+### Query 11: Thermal Efficiency Degradation & Out-of-Bounds Heat Rate Operating Frequency by Plant (BQ9)
+* **Goal:** Reconcile monthly thermal heat rate exceedance months with annual emissions, evaluating power plants running at degraded efficiencies (CCGT > 10,000, Coal Steam > 14,000, Peakers > 16,000 Btu/kWh).
+* **SQL Structure:** Pre-aggregates `fact_monthly_plant_operations` in CTE `plant_monthly_thermal_ops` and `fact_hourly_emissions_weather` in CTE `plant_annual_emissions_summary` to shared grain `(plant_key, calendar_year)` before joining.
+* **Measures:** `degraded_efficiency_months_count`, `degraded_operating_pct`, `weighted_heat_rate_btu_kwh`, `annual_co2_tons`.
+* **Output Status:** Flags chronic degradation (`>= 3` months) vs moderate alerts.
 

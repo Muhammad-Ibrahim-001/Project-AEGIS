@@ -63,7 +63,7 @@ Gate: 3 reporting views in gold_marts + OLAP queries execute without error.
 - [x] 4.3 DirectQuery Power BI semantic verification [S]
 
 ## Current
-Stage 1 (Repo hygiene), Stage 2 (Loader correctness), Stage 3 (6-Category DQ Engine), Stage 4 (Real-Data Downloader, Rubric Volume Gate >=100 Dims / >=10,000 Facts, Synthetic Defect Generator), Stage 5 (Phase 1 document fixes: 10 Kimball BQs, grain statements, hierarchies, vw_monthly_generation_mix), and Stage 6 (Automated PDF Report Generator: Data_Cleaning_Report.pdf and Data_Quality_Report.pdf via ReportLab) are complete. All 87 unit tests green. Next step: Stage 5 leftovers (replace BQ9, CTE grain aggregation for Q8/10/11, DuckDB validation suite, standalone Business_Questions.md & Grain_Definitions.md, and Data_Dictionary.xlsx sync) followed by Stage 7 platform alignment. Suggested model tier: mid.
+Stage 1 (Repo hygiene), Stage 2 (Loader correctness), Stage 3 (6-Category DQ Engine), Stage 4 (Real-Data Downloader, Rubric Volume Gate >=100 Dims / >=10,000 Facts, Synthetic Defect Generator), Stage 5 (Phase 1 document fixes), Stage 6 (Automated PDF Report Generator via ReportLab), and Stage 5 Leftovers (replacement BQ9, SCD2 generator history, CTE grain aggregation for Q8/10/11, DuckDB validation suite, standalone Business_Questions.md & Grain_Definitions.md, and Data_Dictionary.xlsx sync) are complete. All 90 unit tests green. Next step: Stage 7 platform alignment gate (awaiting user confirmation on instructor approval of Databricks Serverless over PostgreSQL). Suggested model tier: mid.
 
 ## Open issues
 - None.

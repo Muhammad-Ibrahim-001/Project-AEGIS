@@ -324,7 +324,7 @@ SELECT
     p.plant_name,
     g.generator_id,
     g.prime_mover_code,
-    g.energy_source_code,
+    g.primary_energy_source,
     g.operating_status AS current_operating_status,
     g.nameplate_capacity_mw,
     g.valid_from,
@@ -338,7 +338,7 @@ SELECT
         ELSE 'OTHER_LIFECYCLE_STATE'
     END AS asset_lifecycle_category
 FROM gold_warehouse.dim_generator g
-LEFT JOIN gold_warehouse.dim_plant p ON g.plant_key = p.plant_key
+LEFT JOIN gold_warehouse.dim_plant p ON g.orispl_code = p.orispl_code
 WHERE g.generator_key <> -1
 ORDER BY g.orispl_code, g.generator_id, g.valid_from;
 
@@ -346,91 +346,148 @@ ORDER BY g.orispl_code, g.generator_id, g.valid_from;
 -- ==============================================================================
 -- 10. CLIMATIC STRESS GRID DISPATCH & RESERVE MARGIN WINDOW ANALYSIS (ANSWERS BQ8)
 -- Analytical Question: BQ8 - Extreme Climatic Stress vs Regional Grid Dispatch
--- Fact Table:  fact_regional_grid_demand
--- Dimensions:  dim_balancing_authority, dim_date
--- Measures:    demand_mw, demand_forecast_mw, net_gen_gas_mw, net_gen_coal_mw
--- Business Intent: Analyzes demand forecasting errors and thermal peaker ramp-ups
---                  during polar vortex freezes and summer heat domes.
+-- Fact Tables: fact_regional_grid_demand, fact_hourly_emissions_weather
+-- Shared Grain: Hourly per Balancing Authority (date_key, hour_of_day, ba_code)
+-- Dimensions:  dim_balancing_authority, dim_plant, dim_date
+-- Measures:    demand_mw, demand_forecast_mw, net_gen_gas_mw, net_gen_coal_mw, gross_load_mw
+-- Business Intent: Pre-aggregates both facts separately in CTEs to the shared BA-hour
+--                  grain before joining, avoiding multi-fact Cartesian fan-out.
 -- ==============================================================================
+WITH hourly_grid_demand AS (
+    SELECT 
+        g.date_key,
+        g.hour_of_day,
+        ba.ba_code,
+        ba.ba_name,
+        ba.region AS nerc_region,
+        AVG(g.demand_mw) AS demand_mw,
+        AVG(g.demand_forecast_mw) AS demand_forecast_mw,
+        SUM(COALESCE(g.net_gen_gas_mw, 0) + COALESCE(g.net_gen_coal_mw, 0)) AS grid_thermal_dispatch_mw,
+        SUM(COALESCE(g.net_gen_wind_mw, 0) + COALESCE(g.net_gen_solar_mw, 0)) AS grid_renewable_dispatch_mw
+    FROM gold_warehouse.fact_regional_grid_demand g
+    JOIN gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
+    GROUP BY g.date_key, g.hour_of_day, ba.ba_code, ba.ba_name, ba.region
+),
+hourly_ba_emissions AS (
+    SELECT 
+        f.date_key,
+        f.hour_of_day,
+        p.ba_code,
+        SUM(f.gross_load_mw) AS plant_gross_generation_mw,
+        SUM(f.co2_mass_tons) AS plant_co2_tons,
+        AVG(f.ambient_temp_celsius) AS avg_ambient_temp_celsius
+    FROM gold_warehouse.fact_hourly_emissions_weather f
+    JOIN gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
+    GROUP BY f.date_key, f.hour_of_day, p.ba_code
+)
 SELECT 
     d.calendar_date,
     g.hour_of_day,
-    ba.ba_code,
-    ba.ba_name,
-    ba.region AS nerc_region,
+    g.ba_code,
+    g.ba_name,
+    g.nerc_region,
     CASE 
         WHEN d.is_winter_freeze = TRUE THEN 'WINTER_FREEZE_EVENT'
         WHEN d.is_summer_peak = TRUE THEN 'SUMMER_PEAK_HEAT_DOME'
         ELSE 'STANDARD_CLIMATIC_CONDITIONS'
     END AS climatic_stress_event,
-    g.demand_mw,
-    g.demand_forecast_mw,
-    (g.demand_mw - g.demand_forecast_mw) AS forecast_residual_error_mw,
-    COALESCE(g.net_gen_gas_mw, 0) + COALESCE(g.net_gen_coal_mw, 0) AS thermal_dispatch_mw,
-    COALESCE(g.net_gen_wind_mw, 0) + COALESCE(g.net_gen_solar_mw, 0) AS renewable_dispatch_mw,
+    ROUND(g.demand_mw, 2) AS demand_mw,
+    ROUND(g.demand_forecast_mw, 2) AS demand_forecast_mw,
+    ROUND(g.demand_mw - g.demand_forecast_mw, 2) AS forecast_residual_error_mw,
+    ROUND(g.grid_thermal_dispatch_mw, 2) AS grid_thermal_dispatch_mw,
+    ROUND(COALESCE(e.plant_gross_generation_mw, 0.0), 2) AS plant_monitored_gross_mw,
+    ROUND(COALESCE(e.plant_co2_tons, 0.0), 2) AS plant_co2_tons,
+    ROUND(e.avg_ambient_temp_celsius, 1) AS avg_ambient_temp_celsius,
     -- 24-Hour Rolling Average Demand within Balancing Authority
     ROUND(
         AVG(g.demand_mw) OVER (
-            PARTITION BY g.ba_key 
+            PARTITION BY g.ba_code 
             ORDER BY g.date_key, g.hour_of_day 
             ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
         ), 2
     ) AS rolling_24hr_avg_demand_mw,
     -- Rank hourly peak stress within each climatic stress event
     DENSE_RANK() OVER (
-        PARTITION BY g.ba_key, d.is_winter_freeze, d.is_summer_peak 
+        PARTITION BY g.ba_code, d.is_winter_freeze, d.is_summer_peak 
         ORDER BY (g.demand_mw - g.demand_forecast_mw) DESC
     ) AS underforecast_stress_rank
-FROM gold_warehouse.fact_regional_grid_demand g
-JOIN gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
+FROM hourly_grid_demand g
 JOIN gold_warehouse.dim_date d ON g.date_key = d.date_key
+LEFT JOIN hourly_ba_emissions e ON g.date_key = e.date_key 
+                                AND g.hour_of_day = e.hour_of_day 
+                                AND g.ba_code = e.ba_code
 WHERE d.is_winter_freeze = TRUE OR d.is_summer_peak = TRUE
 ORDER BY forecast_residual_error_mw DESC;
 
 
 -- ==============================================================================
--- 11. BALANCING AUTHORITY PEAK DEMAND SLICING & THERMAL FUEL MIX (ANSWERS BQ9)
--- Analytical Question: BQ9 - Peak Grid Demand vs Thermal Dispatch by BA
--- Fact Table:  fact_regional_grid_demand
--- Dimensions:  dim_balancing_authority, dim_date
--- Measures:    demand_mw, net_gen_coal_mw, net_gen_gas_mw, peaker_thermal_share_pct
--- Business Intent: Isolates the top 5% peak load hours per Balancing Authority to
---                  evaluate thermal peaker dependency and reserve adequacy.
+-- 11. THERMAL EFFICIENCY DEGRADATION & HEAT-RATE EXCEEDANCE FREQUENCY (ANSWERS BQ9)
+-- Analytical Question: BQ9 - Plant Thermal Degradation & Out-of-Bounds Heat Rate Months
+-- Fact Tables: fact_monthly_plant_operations, fact_hourly_emissions_weather
+-- Shared Grain: Annual per Generating Facility (calendar_year, plant_key)
+-- Dimensions:  dim_plant, dim_date
+-- Measures:    avg_heat_rate_btu_kwh, degraded_operating_months, annual_fuel_mmbtu
+-- Business Intent: Reconciles monthly heat rate degradation with annual emissions
+--                  by pre-aggregating each fact in a CTE before joining.
 -- ==============================================================================
-WITH demand_ranked_hours AS (
+WITH plant_monthly_thermal_ops AS (
     SELECT 
-        g.date_key,
-        g.hour_of_day,
-        ba.ba_code,
-        ba.ba_name,
-        ba.region,
-        g.demand_mw,
-        g.net_gen_coal_mw,
-        g.net_gen_gas_mw,
-        g.net_gen_wind_mw,
-        g.net_gen_solar_mw,
-        PERCENT_RANK() OVER (
-            PARTITION BY g.ba_key 
-            ORDER BY g.demand_mw ASC
-        ) AS demand_percentile
-    FROM gold_warehouse.fact_regional_grid_demand g
-    JOIN gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
+        f.plant_key,
+        d.calendar_year,
+        f.prime_mover_code,
+        f.energy_source_code,
+        COUNT(*) AS total_operating_months,
+        SUM(f.net_generation_mwh) AS annual_net_generation_mwh,
+        SUM(f.fuel_consumed_mmbtu) AS annual_fuel_consumed_mmbtu,
+        ROUND(
+            SUM(f.fuel_consumed_mmbtu * 1000.0) / NULLIF(SUM(f.net_generation_mwh), 0), 2
+        ) AS weighted_heat_rate_btu_kwh,
+        COUNT(CASE 
+            WHEN f.prime_mover_code = 'CC' AND f.avg_heat_rate_btu_kwh > 10000 THEN 1
+            WHEN f.prime_mover_code = 'ST' AND f.avg_heat_rate_btu_kwh > 14000 THEN 1
+            WHEN f.prime_mover_code = 'GT' AND f.avg_heat_rate_btu_kwh > 16000 THEN 1
+            ELSE NULL
+        END) AS degraded_efficiency_months_count
+    FROM gold_warehouse.fact_monthly_plant_operations f
+    JOIN gold_warehouse.dim_date d ON f.month_start_date_key = d.date_key
+    GROUP BY f.plant_key, d.calendar_year, f.prime_mover_code, f.energy_source_code
+),
+plant_annual_emissions_summary AS (
+    SELECT 
+        f.plant_key,
+        d.calendar_year,
+        SUM(f.gross_load_mw) AS total_gross_mw,
+        SUM(f.co2_mass_tons) AS total_co2_tons
+    FROM gold_warehouse.fact_hourly_emissions_weather f
+    JOIN gold_warehouse.dim_date d ON f.date_key = d.date_key
+    GROUP BY f.plant_key, d.calendar_year
 )
 SELECT 
-    ba_code,
-    ba_name,
-    region,
-    COUNT(*) AS top_5_pct_peak_hours_count,
-    ROUND(MIN(demand_mw), 2) AS min_peak_demand_threshold_mw,
-    ROUND(MAX(demand_mw), 2) AS max_historical_peak_demand_mw,
-    ROUND(AVG(net_gen_coal_mw + net_gen_gas_mw), 2) AS avg_peak_thermal_generation_mw,
-    ROUND(AVG(net_gen_wind_mw + net_gen_solar_mw), 2) AS avg_peak_renewable_generation_mw,
+    t.calendar_year,
+    p.orispl_code,
+    p.plant_name,
+    p.state_code,
+    t.prime_mover_code,
+    t.energy_source_code,
+    t.total_operating_months,
+    t.degraded_efficiency_months_count,
     ROUND(
-        AVG(net_gen_coal_mw + net_gen_gas_mw) / NULLIF(AVG(demand_mw), 0) * 100.0, 2
-    ) AS peaker_thermal_share_pct
-FROM demand_ranked_hours
-WHERE demand_percentile >= 0.95
-GROUP BY ba_code, ba_name, region
-ORDER BY max_historical_peak_demand_mw DESC;
+        t.degraded_efficiency_months_count * 100.0 / NULLIF(t.total_operating_months, 0), 1
+    ) AS degraded_operating_pct,
+    t.annual_net_generation_mwh,
+    t.annual_fuel_consumed_mmbtu,
+    t.weighted_heat_rate_btu_kwh,
+    ROUND(COALESCE(e.total_co2_tons, 0.0), 2) AS annual_co2_tons,
+    CASE 
+        WHEN t.degraded_efficiency_months_count >= 3 THEN 'CHRONIC_THERMAL_DEGRADATION'
+        WHEN t.degraded_efficiency_months_count > 0 THEN 'MODERATE_EFFICIENCY_ALERT'
+        ELSE 'NORMAL_EFFICIENCY_DISPATCH'
+    END AS fleet_efficiency_status
+FROM plant_monthly_thermal_ops t
+JOIN gold_warehouse.dim_plant p ON t.plant_key = p.plant_key
+LEFT JOIN plant_annual_emissions_summary e ON t.plant_key = e.plant_key 
+                                           AND t.calendar_year = e.calendar_year
+ORDER BY t.calendar_year, t.degraded_efficiency_months_count DESC, t.weighted_heat_rate_btu_kwh DESC;
+
 
 
