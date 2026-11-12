@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deliverable 4: Fact and Dimension Identification</title>
+<style>
+@page {
+    size: A4;
+    margin: 20mm 16mm 20mm 16mm;
+    @bottom-right {
+        content: counter(page);
+    }
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1E293B;
+    line-height: 1.55;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+}
+.cover-page {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 90vh;
+    padding-top: 40px;
+}
+.cover-tag {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0284C7;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+.cover-title {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    margin-bottom: 16px;
+}
+.cover-subtitle {
+    font-size: 13.5pt;
+    color: #475569;
+    line-height: 1.4;
+    margin-bottom: 35px;
+}
+.cover-divider {
+    width: 80px;
+    height: 5px;
+    background-color: #0284C7;
+    margin-bottom: 35px;
+}
+.cover-meta {
+    font-size: 10.5pt;
+    color: #334155;
+    margin-top: 15px;
+    border-left: 3px solid #CBD5E1;
+    padding-left: 15px;
+}
+.cover-team-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 25px;
+}
+.cover-team-table th {
+    background-color: #0F172A;
+    color: #FFFFFF;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 9.5pt;
+}
+.cover-team-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 9.5pt;
+}
+h1 {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #0F172A;
+    border-bottom: 2px solid #E2E8F0;
+    padding-bottom: 5px;
+    margin-top: 25px;
+    page-break-after: avoid;
+}
+h2 {
+    font-size: 12.5pt;
+    font-weight: 700;
+    color: #0369A1;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #0F172A;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+}
+p {
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-align: justify;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+}
+th {
+    background-color: #0F172A;
+    color: #FFFFFF;
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 9px;
+    border: 1px solid #0F172A;
+}
+td {
+    padding: 6px 9px;
+    border: 1px solid #CBD5E1;
+    vertical-align: top;
+}
+tr:nth-child(even) {
+    background-color: #F8FAFC;
+}
+.callout {
+    background-color: #F0FDF4;
+    border-left: 4px solid #059669;
+    padding: 10px 14px;
+    margin: 14px 0;
+    border-radius: 0 4px 4px 0;
+    page-break-inside: avoid;
+}
+.callout-title {
+    font-weight: 700;
+    color: #065F46;
+    margin-bottom: 4px;
+    font-size: 9.5pt;
+}
+.page-break {
+    page-break-after: always;
+}
+code {
+    font-family: "Consolas", monospace;
+    font-size: 8pt;
+    background-color: #F1F5F9;
+    padding: 1px 3px;
+    border-radius: 3px;
+    color: #0F172A;
+}
+</style>
+</head>
+<body>
+
+<div class="cover-page">
+    <div class="cover-tag">DL3004 Data Warehousing & Business Intelligence • Phase 1 Deliverable</div>
+    <div class="cover-title">Fact & Dimension Identification Specification</div>
+    <div class="cover-subtitle">Enterprise Kimball Bus Matrix, Multi-Grain Fact Archetypes, Conformed Dimensions, Slowly Changing Dimensions (SCD Type 2) & Surrogate Key Architecture</div>
+    <div class="cover-divider"></div>
+    <div class="cover-meta">
+        <strong>Academic Course:</strong> DL3004 Data Warehousing & Business Intelligence (DWBI)<br>
+        <strong>Institution:</strong> FAST National University of Computer & Emerging Sciences<br>
+        <strong>Faculty / Instructor:</strong> Shahzeb Mubashar<br>
+        <strong>Submission Phase:</strong> Phase 1: Business Analysis & Dimensional Design (30% Weight)<br>
+        <strong>Submission Date:</strong> November 2026
+    </div>
+    
+    <table class="cover-team-table">
+        <thead>
+            <tr>
+                <th>Teammate Name</th>
+                <th>Roll Number</th>
+                <th>Work Package Ownership & Course Responsibilities</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Muhammad Ibrahim</strong></td>
+                <td>24L-2602</td>
+                <td><strong>WP1 Lead:</strong> Ingestion, Multi-Source Raw Landing & Bronze Lakehouse Architecture</td>
+            </tr>
+            <tr>
+                <td><strong>Rai Fahad Sultan</strong></td>
+                <td>24L-2509</td>
+                <td><strong>WP2 Lead:</strong> Data Quality Rules Engine, Dead-Letter Quarantine & Silver Conformance</td>
+            </tr>
+            <tr>
+                <td><strong>Muhammad Ayyan</strong></td>
+                <td>24L-2568</td>
+                <td><strong>WP3 Lead:</strong> Kimball Dimensional Modeling, Star Schema Bus Matrix & Gold Layer</td>
+            </tr>
+            <tr>
+                <td><strong>Taha Imran</strong></td>
+                <td>24L-2560</td>
+                <td><strong>WP4 Lead:</strong> Analytical OLAP Engineering, Power BI DirectQuery Dashboard & Tuning</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h1>1. Kimball Dimensional Bus Architecture</h1>
+<p>
+A core tenet of Ralph Kimball's dimensional modeling discipline is the <strong>Enterprise Bus Architecture</strong>. Rather than designing isolated, application-specific data marts, the warehouse coordinates analytical marts through <strong>conformed dimensions</strong>—dimensions that maintain consistent column names, definitions, and domain values across distinct business processes.
+</p>
+<p>
+This design integrates three distinct business processes operating at three divergent temporal and physical grains, interconnected via five conformed dimensions:
+</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Business Process</th>
+            <th>Fact Table</th>
+            <th>Fact Archetype</th>
+            <th><code>dim_date</code></th>
+            <th><code>dim_plant</code></th>
+            <th><code>dim_generator</code> (Outrigger)</th>
+            <th><code>dim_balancing_authority</code></th>
+            <th><code>dim_weather_station</code></th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Smokestack CEMS Continuous Emissions</strong></td>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td>Transactional</td>
+            <td><strong>X</strong> (Hourly)</td>
+            <td><strong>X</strong> (Facility)</td>
+            <td>— (via Crosswalk)</td>
+            <td>— (via Plant Attribute)</td>
+            <td><strong>X</strong> (&le;50 km Spatial Join)</td>
+        </tr>
+        <tr>
+            <td><strong>Monthly Plant Generation & Fuel Accounting</strong></td>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td>Periodic Snapshot</td>
+            <td><strong>X</strong> (Month Start)</td>
+            <td><strong>X</strong> (Facility)</td>
+            <td>— (via Plant Master)</td>
+            <td>— (via Plant Attribute)</td>
+            <td>—</td>
+        </tr>
+        <tr>
+            <td><strong>Regional Grid Demand & Fuel Dispatch</strong></td>
+            <td><code>fact_regional_grid_demand</code></td>
+            <td>Aggregate Grid</td>
+            <td><strong>X</strong> (Hourly)</td>
+            <td>—</td>
+            <td>—</td>
+            <td><strong>X</strong> (ISO / RTO)</td>
+            <td>—</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="callout">
+    <div class="callout-title">Cross-Fact Drill-Across Capability</div>
+    Although <code>fact_regional_grid_demand</code> operates at the regional balancing authority grain and <code>fact_hourly_emissions_weather</code> operates at the individual smokestack grain, reports can seamlessly drill across both facts. By joining each fact to <code>dim_date</code> and grouping by <code>dim_plant.ba_code = dim_balancing_authority.ba_code</code>, analysts can directly compare total regional electricity demand against aggregate real-time fossil emissions for the identical hour.
+</div>
+
+<div class="page-break"></div>
+
+<h1>2. Comprehensive Conformed Dimensions Catalog</h1>
+
+<h3>2.1 <code>dim_date</code> (Calendar Dimension)</h3>
+<p>
+Generated programmatically across calendar years 2020 through 2026. Serves as the universal conformed temporal dimension.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Attribute Name</th>
+            <th>Data Type</th>
+            <th>Key / Role</th>
+            <th>Analytical Purpose / Hierarchy Level</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>date_key</code></td><td>INTEGER</td><td><strong>Primary Key</strong></td><td>Smart integer format <code>YYYYMMDD</code> (e.g., <code>20230715</code>). Avoids relational join overhead.</td></tr>
+        <tr><td><code>calendar_date</code></td><td>DATE</td><td>Natural Key</td><td>Standard date type (<code>2023-07-15</code>) for direct time-series filtering.</td></tr>
+        <tr><td><code>calendar_year</code></td><td>SMALLINT</td><td>Hierarchy L1</td><td>Four-digit year (e.g., <code>2023</code>) supporting multi-year trend aggregations.</td></tr>
+        <tr><td><code>calendar_quarter</code></td><td>SMALLINT</td><td>Hierarchy L2</td><td>Quarter of the year (<code>1</code> to <code>4</code>) for seasonal financial evaluations.</td></tr>
+        <tr><td><code>calendar_month</code></td><td>SMALLINT</td><td>Hierarchy L3</td><td>Numeric month (<code>1</code> to <code>12</code>) matching monthly reporting filings.</td></tr>
+        <tr><td><code>month_name</code></td><td>VARCHAR(20)</td><td>Attribute</td><td>Full English month name (<code>January</code> .. <code>December</code>) for visual chart axes.</td></tr>
+        <tr><td><code>day_of_month</code></td><td>SMALLINT</td><td>Hierarchy L4</td><td>Day number (<code>1</code> to <code>31</code>).</td></tr>
+        <tr><td><code>day_of_week</code></td><td>SMALLINT</td><td>Attribute</td><td>Day index (<code>1</code>=Monday .. <code>7</code>=Sunday).</td></tr>
+        <tr><td><code>day_name</code></td><td>VARCHAR(20)</td><td>Attribute</td><td>Name of the weekday (<code>Monday</code> .. <code>Sunday</code>).</td></tr>
+        <tr><td><code>is_weekend</code></td><td>BOOLEAN</td><td>Attribute</td><td>Flag (<code>true</code> / <code>false</code>) distinguishing industrial weekday load from weekend base load.</td></tr>
+    </tbody>
+</table>
+
+<h3>2.2 <code>dim_plant</code> (Master Facility Dimension)</h3>
+<p>
+The master physical power plant facility dimension. Sourced from Form EIA-860 and harmonized with EPA CAMPD.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Attribute Name</th>
+            <th>Data Type</th>
+            <th>Key / Role</th>
+            <th>Analytical Purpose / Definition</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>plant_key</code></td><td>BIGINT IDENTITY</td><td><strong>Primary Key</strong></td><td>Surrogate surrogate key ensuring independence from federal identifier changes.</td></tr>
+        <tr><td><code>orispl_code</code></td><td>INTEGER</td><td>Natural Key</td><td>Office of Regulatory Information Systems plant code (EIA/EPA universal natural key).</td></tr>
+        <tr><td><code>plant_name</code></td><td>VARCHAR(255)</td><td>Attribute</td><td>Standardized corporate facility title.</td></tr>
+        <tr><td><code>utility_id</code></td><td>INTEGER</td><td>Attribute</td><td>EIA regulatory utility identifier of the operating parent entity.</td></tr>
+        <tr><td><code>utility_name</code></td><td>VARCHAR(255)</td><td>Attribute</td><td>Operating utility company name.</td></tr>
+        <tr><td><code>latitude</code></td><td>NUMERIC(9,6)</td><td>Geospatial</td><td>Geodetic latitude coordinate for spatial joins and Power BI map visuals.</td></tr>
+        <tr><td><code>longitude</code></td><td>NUMERIC(9,6)</td><td>Geospatial</td><td>Geodetic longitude coordinate for spatial joins and Power BI map visuals.</td></tr>
+        <tr><td><code>state_code</code></td><td>CHAR(2)</td><td>Hierarchy L1</td><td>Two-letter USPS state postal abbreviation (e.g., <code>TX</code>, <code>OH</code>, <code>PA</code>).</td></tr>
+        <tr><td><code>county_name</code></td><td>VARCHAR(100)</td><td>Hierarchy L2</td><td>County jurisdiction for environmental justice and non-attainment analysis.</td></tr>
+        <tr><td><code>ba_code</code></td><td>VARCHAR(50)</td><td>Foreign Ref</td><td>Regional balancing authority identifier linking facilities to grid operators.</td></tr>
+        <tr><td><code>epa_region</code></td><td>SMALLINT</td><td>Hierarchy</td><td>Federal EPA administrative region (1 through 10).</td></tr>
+        <tr><td><code>is_combined_heat_power</code></td><td>BOOLEAN</td><td>Flag</td><td>Identifies industrial cogeneration facilities with external thermal export credits.</td></tr>
+    </tbody>
+</table>
+
+<h3>2.3 <code>dim_generator</code> (Asset Lifecycle Outrigger - SCD Type 2)</h3>
+<p>
+Tracks individual prime-mover generator assets housed within power plants. Implements Kimball <strong>Slowly Changing Dimensions (SCD Type 2)</strong> to capture operating status transitions over time without losing historical context.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Attribute Name</th>
+            <th>Data Type</th>
+            <th>Key / Role</th>
+            <th>Analytical Purpose / Definition</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>generator_key</code></td><td>BIGINT IDENTITY</td><td><strong>Primary Key</strong></td><td>Surrogate primary key representing a unique temporal version of a generator record.</td></tr>
+        <tr><td><code>orispl_code</code></td><td>INTEGER</td><td>Foreign Key</td><td>References parent facility in <code>dim_plant.orispl_code</code>.</td></tr>
+        <tr><td><code>generator_id</code></td><td>VARCHAR(50)</td><td>Natural Key</td><td>Physical generator equipment code reported in EIA-860.</td></tr>
+        <tr><td><code>prime_mover_code</code></td><td>VARCHAR(20)</td><td>Attribute</td><td>Turbine/engine design: <code>ST</code> (Steam Turbine), <code>GT</code> (Gas Turbine), <code>CT</code> (Combined Cycle Combustion Turbine), <code>CA</code> (Combined Cycle Steam Part).</td></tr>
+        <tr><td><code>primary_energy_source</code></td><td>VARCHAR(20)</td><td>Attribute</td><td>Fuel code: <code>NG</code> (Natural Gas), <code>SUB</code> (Subbituminous Coal), <code>BIT</code> (Bituminous Coal), <code>NUC</code> (Nuclear), <code>WAT</code> (Water).</td></tr>
+        <tr><td><code>nameplate_capacity_mw</code></td><td>NUMERIC(10,2)</td><td>Measure</td><td>Rated maximum continuous electrical output capacity in megawatts.</td></tr>
+        <tr><td><code>operating_status</code></td><td>VARCHAR(20)</td><td>SCD Tracked</td><td>Operating state: <code>OP</code> (Operating), <code>SB</code> (Standby), <code>RE</code> (Retired), <code>OA</code> (Out of Service).</td></tr>
+        <tr><td><code>row_effective_date</code></td><td>DATE</td><td>SCD Type 2</td><td>Date when this specific operating state became valid.</td></tr>
+        <tr><td><code>row_expiration_date</code></td><td>DATE</td><td>SCD Type 2</td><td>Date when this state ceased to be valid (set to <code>9999-12-31</code> for active records).</td></tr>
+        <tr><td><code>is_current</code></td><td>BOOLEAN</td><td>SCD Type 2</td><td><code>true</code> if this is the active current lifecycle record; <code>false</code> for historical records.</td></tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h3>2.4 <code>dim_balancing_authority</code> (Regional Grid Operator Dimension)</h3>
+<p>
+Represents the 66 balancing authorities that oversee electric transmission frequency across the North American Eastern, Western, and Texas Interconnections.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Attribute Name</th>
+            <th>Data Type</th>
+            <th>Key / Role</th>
+            <th>Analytical Purpose / Definition</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>ba_key</code></td><td>BIGINT IDENTITY</td><td><strong>Primary Key</strong></td><td>Surrogate primary key.</td></tr>
+        <tr><td><code>ba_code</code></td><td>VARCHAR(50)</td><td>Natural Key</td><td>Standardized ISO/RTO mnemonic (e.g., <code>PJM</code>, <code>CISO</code>, <code>MISO</code>, <code>ERCO</code>, <code>NYIS</code>).</td></tr>
+        <tr><td><code>ba_name</code></td><td>VARCHAR(255)</td><td>Attribute</td><td>Official corporate name of the grid reliability entity.</td></tr>
+        <tr><td><code>interconnection_region</code></td><td>VARCHAR(50)</td><td>Attribute</td><td>Electric Interconnection: <code>Eastern</code>, <code>Western</code>, <code>ERCOT / Texas</code>.</td></tr>
+        <tr><td><code>is_active</code></td><td>BOOLEAN</td><td>Attribute</td><td>Operational status of the balancing authority entity.</td></tr>
+    </tbody>
+</table>
+
+<h3>2.5 <code>dim_weather_station</code> (Synoptic Meteorological Station Dimension)</h3>
+<p>
+Represents NOAA Integrated Surface Database (ISD) terrestrial weather monitoring stations.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Attribute Name</th>
+            <th>Data Type</th>
+            <th>Key / Role</th>
+            <th>Analytical Purpose / Definition</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>station_key</code></td><td>BIGINT IDENTITY</td><td><strong>Primary Key</strong></td><td>Surrogate primary key.</td></tr>
+        <tr><td><code>station_id</code></td><td>VARCHAR(50)</td><td>Natural Key</td><td>11-character composite USAF-WBAN identifier (e.g., <code>722190-13874</code>).</td></tr>
+        <tr><td><code>station_name</code></td><td>VARCHAR(255)</td><td>Attribute</td><td>National Weather Service airport / synoptic station title.</td></tr>
+        <tr><td><code>state_code</code></td><td>CHAR(2)</td><td>Attribute</td><td>Two-letter postal code territory.</td></tr>
+        <tr><td><code>latitude</code></td><td>NUMERIC(9,6)</td><td>Geospatial</td><td>Station latitude for spatial Haversine joining.</td></tr>
+        <tr><td><code>longitude</code></td><td>NUMERIC(9,6)</td><td>Geospatial</td><td>Station longitude for spatial Haversine joining.</td></tr>
+        <tr><td><code>elevation_m</code></td><td>NUMERIC(8,2)</td><td>Attribute</td><td>Elevation in meters above mean sea level.</td></tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h1>3. Multi-Grain Fact Tables Identification (Kimball Archetypes)</h1>
+
+<h3>3.1 <code>fact_hourly_emissions_weather</code> (Transactional Fact Archetype)</h3>
+<p>
+Captures continuous hourly physical smokestack emissions, fuel consumption, electrical output, and ambient weather.
+</p>
+<ul>
+    <li><strong>Business Process:</strong> Continuous Emission Monitoring System (CEMS) hourly telemetry.</li>
+    <li><strong>Grain:</strong> One row per generating unit at a power plant per clock hour.</li>
+    <li><strong>Clustering & Optimization:</strong> Liquid Clustered via <code>CLUSTER BY (date_key, plant_key)</code>.</li>
+</ul>
+<table>
+    <thead>
+        <tr>
+            <th>Field Name</th>
+            <th>Data Type</th>
+            <th>Role</th>
+            <th>Additivity & Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>date_key</code></td><td>INT</td><td>PK / FK</td><td>Foreign key to <code>dim_date.date_key</code>.</td></tr>
+        <tr><td><code>hour_of_day</code></td><td>SMALLINT</td><td>PK</td><td>Clock hour of the day (0 to 23).</td></tr>
+        <tr><td><code>plant_key</code></td><td>BIGINT</td><td>PK / FK</td><td>Foreign key to <code>dim_plant.plant_key</code>.</td></tr>
+        <tr><td><code>unit_id</code></td><td>VARCHAR(50)</td><td>PK</td><td>Degenerate smokestack CEMS unit identifier.</td></tr>
+        <tr><td><code>station_key</code></td><td>BIGINT</td><td>FK</td><td>Foreign key to <code>dim_weather_station.station_key</code>.</td></tr>
+        <tr><td><code>gross_load_mw</code></td><td>NUMERIC(12,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Gross generator output across operating minutes.</td></tr>
+        <tr><td><code>heat_input_mmbtu</code></td><td>NUMERIC(14,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Thermal combustion energy consumed.</td></tr>
+        <tr><td><code>so2_mass_lbs</code></td><td>NUMERIC(14,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Sulfur dioxide mass emitted.</td></tr>
+        <tr><td><code>nox_mass_lbs</code></td><td>NUMERIC(14,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Nitrogen oxides mass emitted.</td></tr>
+        <tr><td><code>co2_mass_tons</code></td><td>NUMERIC(14,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Carbon dioxide mass emitted (short tons).</td></tr>
+        <tr><td><code>ambient_temp_celsius</code></td><td>NUMERIC(6,2)</td><td>Measure</td><td><strong>Non-Additive.</strong> Surface air temperature (averaged across time/units).</td></tr>
+        <tr><td><code>wind_speed_mps</code></td><td>NUMERIC(6,2)</td><td>Measure</td><td><strong>Non-Additive.</strong> Surface wind velocity in meters per second.</td></tr>
+        <tr><td><code>weather_distance_km</code></td><td>NUMERIC(6,2)</td><td>Measure</td><td><strong>Non-Additive.</strong> Great-Circle Haversine join distance (&le;50 km).</td></tr>
+    </tbody>
+</table>
+
+<h3>3.2 <code>fact_monthly_plant_operations</code> (Periodic Snapshot Fact Archetype)</h3>
+<p>
+Captures cumulative monthly facility generation, fuel usage, fuel expenses, and ending stockpiles.
+</p>
+<ul>
+    <li><strong>Business Process:</strong> Monthly plant operations and regulatory generation accounting.</li>
+    <li><strong>Grain:</strong> One row per plant, prime mover, and energy source category per calendar month.</li>
+    <li><strong>Clustering & Optimization:</strong> Liquid Clustered via <code>CLUSTER BY (month_start_date_key, plant_key)</code>.</li>
+</ul>
+<table>
+    <thead>
+        <tr>
+            <th>Field Name</th>
+            <th>Data Type</th>
+            <th>Role</th>
+            <th>Additivity & Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>snapshot_key</code></td><td>BIGINT IDENTITY</td><td>PK</td><td>Surrogate primary key for periodic snapshot.</td></tr>
+        <tr><td><code>month_start_date_key</code></td><td>INT</td><td>FK</td><td>Foreign key to <code>dim_date.date_key</code> (first day of the month).</td></tr>
+        <tr><td><code>plant_key</code></td><td>BIGINT</td><td>FK</td><td>Foreign key to <code>dim_plant.plant_key</code>.</td></tr>
+        <tr><td><code>prime_mover_code</code></td><td>VARCHAR(20)</td><td>Degenerate Dim</td><td>Turbine/generator technology (e.g., <code>ST</code>, <code>GT</code>, <code>CT</code>, <code>CA</code>).</td></tr>
+        <tr><td><code>energy_source_code</code></td><td>VARCHAR(20)</td><td>Degenerate Dim</td><td>Fuel category consumed (e.g., <code>NG</code>, <code>SUB</code>, <code>BIT</code>).</td></tr>
+        <tr><td><code>net_generation_mwh</code></td><td>NUMERIC(14,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Net generation. Allows valid negative values during maintenance.</td></tr>
+        <tr><td><code>fuel_consumed_mmbtu</code></td><td>NUMERIC(16,4)</td><td>Measure</td><td><strong>Fully Additive.</strong> Total thermal fuel energy consumed.</td></tr>
+        <tr><td><code>fuel_consumed_physical</code></td><td>NUMERIC(16,4)</td><td>Measure</td><td><strong>Semi-Additive.</strong> Physical quantity (Tons, Barrels, Mcf). Cannot sum across fuels.</td></tr>
+        <tr><td><code>avg_heat_rate_btu_kwh</code></td><td>NUMERIC(12,2)</td><td>Measure</td><td><strong>Non-Additive Ratio.</strong> Operating thermal efficiency ($Btu/kWh$). Must be recomputed.</td></tr>
+        <tr><td><code>delivered_fuel_cost_per_mmbtu</code></td><td>NUMERIC(10,4)</td><td>Measure</td><td><strong>Non-Additive Ratio.</strong> Commercial fuel delivery expense ($\$/MMBtu$).</td></tr>
+        <tr><td><code>ending_fuel_stock_physical</code></td><td>NUMERIC(16,4)</td><td>Measure</td><td><strong>Semi-Additive Snapshot.</strong> Closing warehouse fuel inventory. Cannot sum across time.</td></tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h3>3.3 <code>fact_regional_grid_demand</code> (Aggregate Grid Fact Archetype)</h3>
+<p>
+Captures macro regional electric grid telemetry reflecting consumer load and fuel dispatch mix.
+</p>
+<ul>
+    <li><strong>Business Process:</strong> Hourly electric grid balancing and regional transmission interchange.</li>
+    <li><strong>Grain:</strong> One row per balancing authority per clock hour.</li>
+    <li><strong>Clustering & Optimization:</strong> Liquid Clustered via <code>CLUSTER BY (date_key, ba_key)</code>.</li>
+</ul>
+<table>
+    <thead>
+        <tr>
+            <th>Field Name</th>
+            <th>Data Type</th>
+            <th>Role</th>
+            <th>Additivity & Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><code>date_key</code></td><td>INT</td><td>PK / FK</td><td>Foreign key to <code>dim_date.date_key</code>.</td></tr>
+        <tr><td><code>hour_of_day</code></td><td>SMALLINT</td><td>PK</td><td>Clock hour of the day (0 to 23).</td></tr>
+        <tr><td><code>ba_key</code></td><td>BIGINT</td><td>PK / FK</td><td>Foreign key to <code>dim_balancing_authority.ba_key</code>.</td></tr>
+        <tr><td><code>demand_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Real-time consumer demand.</td></tr>
+        <tr><td><code>demand_forecast_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Day-ahead demand forecast.</td></tr>
+        <tr><td><code>net_gen_coal_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Coal generation dispatch.</td></tr>
+        <tr><td><code>net_gen_gas_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Natural gas generation dispatch.</td></tr>
+        <tr><td><code>net_gen_nuclear_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Nuclear baseload dispatch.</td></tr>
+        <tr><td><code>net_gen_hydro_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Hydroelectric dispatch.</td></tr>
+        <tr><td><code>net_gen_wind_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Clean renewable wind dispatch.</td></tr>
+        <tr><td><code>net_gen_solar_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Clean renewable solar dispatch.</td></tr>
+        <tr><td><code>net_interchange_mw</code></td><td>NUMERIC(14,2)</td><td>Measure</td><td><strong>Additive across BAs; Averaged across time.</strong> Net power imports (+) or exports (-).</td></tr>
+    </tbody>
+</table>
+
+<h1>4. Surrogate Key Management & Unknown Member Policy</h1>
+<p>
+To ensure complete referential stability and insulate the Gold warehouse from operational agency changes:
+</p>
+<ol>
+    <li><strong>Surrogate Key Generation:</strong> All dimensions utilize integer or <code>BIGINT IDENTITY</code> surrogate keys generated automatically upon insert. Natural business keys (e.g., <code>orispl_code</code>, <code>ba_code</code>, <code>station_id</code>) are retained alongside surrogate keys with <code>UNIQUE</code> constraints.</li>
+    <li><strong>Default Unknown Member (Row <code>-1</code>):</strong> Every dimension table contains a pre-populated row with surrogate key <code>-1</code>, textual descriptions set to <code>'Unknown / Unspecified'</code>, and coordinates set to <code>NULL</code>. When fact ETL encounters an unmapped natural key, it maps the foreign key to <code>-1</code> rather than dropping the record or throwing referential exceptions.</li>
+</ol>
+
+</body>
+</html>

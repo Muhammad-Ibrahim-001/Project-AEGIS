@@ -239,16 +239,19 @@ DWBI-Final-Project/
 ├── DATABRICKS_SERVERLESS_ARCHITECTURE.md # Modern Cloud Lakehouse Specification
 │
 ├── 01_Project_Documentation/
-│   ├── Requirements.pdf              # Official course submission: Problem statement & scope
-│   ├── Schema.pdf                    # Official course submission: Visual Star Schema diagram
-│   ├── Data_Dictionary.xlsx          # Official course submission: Complete 7-tab data catalog
-│   ├── Architecture.pdf / .png       # High-resolution pipeline architecture diagram
-│   ├── Schema.png                    # High-resolution Star Schema raster diagram
-│   ├── schema_diagram_mermaid.md     # Verified Mermaid code for Draw.io diagram rendering
-│   ├── Requirements.md               # Markdown summary linking to archived Phase 1 documents
-│   ├── README.md                     # Documentation folder index and guidelines
-│   ├── course_requirements/          # ⚠️ MANDATORY: University syllabus, rubrics, architecture
-│   └── Team_Guides/                  # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
+│   ├── 01_Project_Proposal.pdf             # Deliverable 1: 8-chapter proposal & architecture
+│   ├── 02_Business_Requirements_Document.pdf # Deliverable 2: Enterprise BRD (FRs, NFRs, SLAs)
+│   ├── 03_10_Business_Questions.pdf        # Deliverable 3: 12 analytical business questions
+│   ├── 04_Fact_and_Dimension_Identification.pdf # Deliverable 4: Kimball Bus Matrix & catalog
+│   ├── 05_Grain_Definition_Document.pdf    # Deliverable 5: Atomic grains & additivity rules
+│   ├── 06_Schema_Diagrams.pdf              # Deliverable 6: Conceptual, Logical & Physical models
+│   ├── 07_Data_Dictionary.xlsx             # Deliverable 7: Complete 7-tab Excel catalog
+│   ├── Architecture.pdf / .png             # End-to-end pipeline architecture diagram
+│   ├── DATA_SOURCES_MASTER_SPECIFICATION.md # 633-line federal data sources & schemas spec
+│   ├── column_removal_map.md               # Silver -> Gold column pruning reference
+│   ├── README.md                           # Documentation folder index and guidelines
+│   ├── course_requirements/                # ⚠️ MANDATORY: University syllabus, rubrics, architecture
+│   └── Team_Guides/                        # ⛔ HUMAN ONBOARDING: Word .docx guides (DO NOT PARSE)
 │
 ├── 02_Data/
 │   ├── raw_data/                     # Raw bulk downloads (EIA-860/923, EPA CAMPD, NOAA ISD)

@@ -56,7 +56,7 @@ The project maps directly to the official university syllabus ([`01_Project_Docu
 | **8** | **Gold Layer (Marts)** | Materialized reporting views in `gold_marts` (`vw_emissions_intensity`, `vw_plant_performance`, `vw_grid_stress`). | [`archived/early_sql_drafts/Views.sql#L1-L115`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/archived/early_sql_drafts/Views.sql#L1-L115) |
 | **9** | **Analytics & BI** | Analytical SQL queries (`GROUP BY CUBE`, `GROUP BY ROLLUP`, window functions `LAG`/`LEAD`) + 3-Page Power BI report. | [`archived/early_sql_drafts/OLAP.sql#L1-L74`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/archived/early_sql_drafts/OLAP.sql#L1-L74) |
 | **10** | **Audit & Reconciliation** | Automated pipeline audit table (`bronze_staging.etl_run_log`) logging execution times, rows read/inserted/rejected, and thermodynamic energy balance checks. | [`03_ETL/config.py#L321-L340`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/03_ETL/config.py#L321-L340), [`PROJECT_BLUEPRINT.md#L213-L219`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md#L213-L219) |
-| **11** | **Metadata & Governance** | Unity Catalog 3-tier namespace (`dwbi_catalog`), data dictionary, column contracts, and lineage tracing. | [`03_ETL/config.py#L32-L66`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/03_ETL/config.py#L32-L66), [`01_Project_Documentation/Data_Dictionary.xlsx`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/Data_Dictionary.xlsx) |
+| **11** | **Metadata & Governance** | Unity Catalog 3-tier namespace (`dwbi_catalog`), data dictionary, column contracts, and lineage tracing. | [`03_ETL/config.py#L32-L66`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/03_ETL/config.py#L32-L66), [`01_Project_Documentation/07_Data_Dictionary.xlsx`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/07_Data_Dictionary.xlsx) |
 
 ---
 
@@ -72,16 +72,20 @@ d:\Semester Projects\DWBI LAB Project\
 ├── README.md                                    # Repository overview & team division of work
 │
 ├── 01_Project_Documentation/
-│   ├── Architecture.pdf / Architecture.png      # High-resolution pipeline architecture diagram
-│   ├── Data_Dictionary.xlsx                     # Complete 7-tab enterprise data dictionary
+│   ├── 01_Project_Proposal.pdf                  # Official Phase 1 Deliverable 1: Proposal & Blueprint
+│   ├── 02_Business_Requirements_Document.pdf    # Official Phase 1 Deliverable 2: Enterprise BRD
+│   ├── 03_10_Business_Questions.pdf             # Official Phase 1 Deliverable 3: 12 Business Questions
+│   ├── 04_Fact_and_Dimension_Identification.pdf # Official Phase 1 Deliverable 4: Kimball Bus Matrix
+│   ├── 05_Grain_Definition_Document.pdf         # Official Phase 1 Deliverable 5: Atomic Grain Specs
+│   ├── 06_Schema_Diagrams.pdf                   # Official Phase 1 Deliverable 6: 3-Tier Schema Diagrams
+│   ├── 07_Data_Dictionary.xlsx                  # Official Phase 1 Deliverable 7: 7-tab data dictionary
+│   ├── Architecture.pdf / Architecture.png      # End-to-end pipeline architecture diagram
 │   ├── DATA_SOURCES_MASTER_SPECIFICATION.md     # 633-line federal data source catalog & schemas
+│   ├── column_removal_map.md                    # Silver -> Gold column pruning map
 │   ├── README.md                                # Documentation directory index
-│   ├── Requirements.md                          # Phase 1 requirements summary
-│   ├── Requirements.pdf                         # Formal Phase 1 requirements submission
-│   ├── Schema.pdf / Schema.png                  # Visual Star Schema entity-relationship diagram
-│   ├── schema_diagram_mermaid.md                # Verified Mermaid diagram code for Draw.io
 │   ├── course_requirements/                     # MANDATORY: Official syllabus & grading rubrics
 │   │   ├── DWBI Final Project Overview.pdf
+│   │   ├── DWBI Lab Phase 1.pdf
 │   │   ├── DWBI Lab Phase 2.pdf
 │   │   ├── DWBI Lab Phase 3.pdf
 │   │   ├── README.md
@@ -111,16 +115,20 @@ d:\Semester Projects\DWBI LAB Project\
 │   │   ├── staging.sql                          # Bronze staging & quarantine DDL
 │   │   ├── Views.sql                            # Gold reporting marts view DDL
 │   │   └── warehouse.sql                        # Kimball Star Schema dimensions & facts DDL
-│   ├── Phase_1_Submission/                      # Formal academic Phase 1 package (APA 7th)
-│   │   ├── Architecture.pdf / Architecture_Pipeline_Diagram.png
-│   │   ├── Data_Dictionary.xlsx
-│   │   ├── Phase_1_Architecture_and_Schema_Specification.md
-│   │   ├── Phase_1_Data_Dictionary.md
+│   ├── Phase_1_Submission/                      # Formal academic Phase 1 submission package
+│   │   ├── 01_Project_Proposal.pdf
+│   │   ├── 02_Business_Requirements_Document.pdf
+│   │   ├── 03_10_Business_Questions.pdf
+│   │   ├── 04_Fact_and_Dimension_Identification.pdf
+│   │   ├── 05_Grain_Definition_Document.pdf
+│   │   ├── 06_Schema_Diagrams.pdf
+│   │   ├── 07_Data_Dictionary.xlsx
+│   │   ├── Conceptual_Model_Diagram.png
+│   │   ├── Logical_Model_Diagram.png
+│   │   ├── Physical_Model_Diagram.png
+│   │   ├── Architecture_Pipeline_Diagram.png
 │   │   ├── Phase_1_Executive_Summary_and_Checklist.md
-│   │   ├── Phase_1_Project_Execution_Plan.md
-│   │   ├── Phase_1_Project_Proposal_and_Design_Document.md
-│   │   ├── Requirements.pdf
-│   │   └── Schema.pdf / Schema_Diagram.jpg
+│   │   └── scripts/                             # Diagram & HTML/PDF build automation scripts
 │   └── scratch_api_tests/                       # Exploratory scraper tests & micro-samples
 │       ├── fetch_and_save_samples.py            # Micro-scraper for EPA, Crosswalk, NOAA, EIA
 │       ├── fetch_remaining_sources.py           # Micro-scraper for EIA-860, EIA-923, ISD history
@@ -155,7 +163,9 @@ d:\Semester Projects\DWBI LAB Project\
 | `DATABRICKS_SERVERLESS_ARCHITECTURE.md` | **Implemented** | Master technical runbook for Databricks Serverless Compute, Serverless SQL Warehouse, Unity Catalog structure, and Power BI DirectQuery integration. |
 | `PROJECT_BLUEPRINT.md` | **Implemented** | Authoritative Kimball dimensional model, mathematical thermodynamic formulas, and physical validation algorithms. |
 | `01_Project_Documentation/DATA_SOURCES_MASTER_SPECIFICATION.md` | **Implemented** | Exhaustive technical specification of the 6 primary data sources, attribute definitions, and relational joins. |
-| `01_Project_Documentation/schema_diagram_mermaid.md` | **Implemented (Legacy Artifacts Present)** | Mermaid ER diagram specification for rendering Star Schema in Draw.io. *Audit Alert:* Contains legacy discrepancies (declares surrogate keys as `int` rather than Delta's mandatory `BIGINT`, labels facts as "Partitioned" instead of Liquid Clustered, and uses legacy PostgreSQL schema names; see `KNOWLEDGE_AUDIT.md`). |
+| `01_Project_Documentation/column_removal_map.md` | **Implemented** | Source-by-source Silver-to-Gold column pruning map across 343 raw physical columns (10 federal feeds). |
+| `01_Project_Documentation/01_`–`07_` Deliverables | **Implemented (Phase 1)** | Formal 7-deliverable Phase 1 academic package (`01_Project_Proposal.pdf` through `07_Data_Dictionary.xlsx`), superseding legacy `schema_diagram_mermaid.md`, `Schema.png`, `Requirements.md/.pdf`, `Schema.pdf`, and old `Data_Dictionary.xlsx` (purged during folder cleanup). |
+| `01_Project_Documentation/Architecture.pdf` & `Architecture.png` | **Preserved (Pipeline Diagram)** | End-to-end 8-stage architecture visual diagram retained in `01_Project_Documentation/` per user request. *(Note: diagram labels retain legacy `project_staging` / `project_dw` / `project_reporting` strings.)* |
 | `archived/early_sql_drafts/` (`staging.sql`, `warehouse.sql`, `quality_checks.sql`, `Views.sql`, `OLAP.sql`) | **Partially Implemented (Drafted)** | Valid Databricks SQL DDL/DML scripts covering schemas, dimensions, facts with Liquid Clustering, quarantine rules, reporting views, and OLAP queries. Currently stored as standalone scripts, awaiting porting into modular PySpark notebooks. |
 | Planned Notebooks: `01_bronze_ingestion.py`, `02_silver_cleansing_and_scd.py`, `03_gold_star_schema_facts.py`, `04_gold_reporting_marts.py` | **Planned** | Operational Databricks PySpark notebooks specified in `DATABRICKS_SERVERLESS_ARCHITECTURE.md` Section 7 Step 3 to execute automated batch extraction and transformation. |
 | Power BI Report (`06_Dashboard/PowerBI.pbix`) | **Planned** | 3-page interactive visual dashboard connecting live to Databricks Serverless SQL Warehouse via Native DirectQuery. |

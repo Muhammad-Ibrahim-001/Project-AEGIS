@@ -5,8 +5,8 @@
   "description": "SHA-256 integrity manifest for Layer 2 authoritative knowledge documents. Verifies byte-level file changes without loading full document contents into model context during routine integrity checks. Does not verify semantic correctness.",
   "documents": {
     "CHANGE_HISTORY.md": {
-      "sha256": "98611e7ab31330fe2aaf51a5ef3a1ff6b505e6a7e6417ba61de06a31bd51972e",
-      "bytes": 13881,
+      "sha256": "414628e37c6854de2e9240b2af45f3f4c13892540ca021d0bee661832c027fe1",
+      "bytes": 16184,
       "purpose": "Historical transitions and commit audit trail"
     },
     "COMPATIBILITY_BASELINE.md": {
@@ -40,8 +40,8 @@
       "purpose": "Official vendor bibliography and authority URLs"
     },
     "PROJECT_PROFILE.md": {
-      "sha256": "d6c2f018a6fdc4eebf47820842365f33ba32df2de0a459bced94381ec790df68",
-      "bytes": 18283,
+      "sha256": "8bdf8f5648b0d224a476fdf03ac4952bb8f9d3e7b7bc0b85c0aa37d8ecead8b4",
+      "bytes": 19350,
       "purpose": "Domain objectives, business questions, and 11-stage mapping"
     }
   }
