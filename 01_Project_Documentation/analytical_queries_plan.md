@@ -94,3 +94,4 @@ Rather than legacy Hive directory partitioning (`/year=2023/month=01`), tables u
 * **SQL Window Clause:**
   * `PERCENT_RANK() OVER (PARTITION BY g.ba_key ORDER BY g.demand_mw ASC) AS demand_percentile`
   * Outer query filters `WHERE demand_percentile >= 0.95`.
+

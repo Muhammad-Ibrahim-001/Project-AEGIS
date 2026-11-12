@@ -38,3 +38,9 @@ desktop.ini
 *.zip
 *.tar.gz
 
+# Python package build artifacts
+*.egg-info/
+build/
+dist/
+
+

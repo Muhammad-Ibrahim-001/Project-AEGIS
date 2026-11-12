@@ -252,3 +252,4 @@ The lakehouse delivers reporting through two decoupled analytical delivery chann
    * Window functions (`LAG`, `LEAD`, moving averages, `DENSE_RANK`) for growth and intensity tracking (Queries 3, 4, 10, 11).
    * Execution plan optimization (`EXPLAIN EXTENDED`) verifying Liquid Clustering data skipping (Query 5).
    * Specialized auditing queries for weather extremes, auxiliary outages, cross-agency reconciliation, and SCD-2 asset tracking (Queries 6, 7, 8, 9).
+

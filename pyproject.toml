@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project-aegis"
+version = "0.2.0"
+description = "U.S. Bulk Power Generation, Smokestack Emissions & Weather Lakehouse (DL3004 DWBI)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1.5",
+    "pandas>=2.2.0",
+    "requests>=2.31.0",
+    "reportlab>=5.0.0",
+    "pypdf>=7.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "duckdb>=1.0.0",
+]

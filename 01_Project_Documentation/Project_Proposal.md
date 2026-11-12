@@ -57,3 +57,4 @@ The lakehouse platform is purpose-built to answer the following 10 formal analyt
   * `gold_marts`: Materialized reporting views for Power BI DirectQuery (`vw_emissions_intensity`, `vw_plant_performance`, `vw_grid_stress`, `vw_monthly_generation_mix`).
   * `quarantine`: Dead-letter quarantine table (`rejected_records`) logging all discarded records with error reason codes.
 * **Reporting & Visual BI:** Microsoft Power BI Desktop connected via Native Databricks Connector (DirectQuery pushdown to `gold_marts`).
+
