@@ -3,7 +3,7 @@
 **System Architecture:** Databricks Serverless Cloud Lakehouse (Delta Lake, PySpark, Unity Catalog)  
 **Temporal Horizon:** 4-Year National Horizon (2021 – 2024: 35,064 hourly periods, 1,461 calendar days)  
 **Catalog / Schemas:** `dwbi_catalog` (`bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`)  
-**Companion Artifacts:** [`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md), [`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md), [`Data_Dictionary.xlsx`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/Data_Dictionary.xlsx)
+**Companion Artifacts:** [`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md), [`DATABRICKS_SERVERLESS_ARCHITECTURE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/DATABRICKS_SERVERLESS_ARCHITECTURE.md), [`07_Data_Dictionary.xlsx`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/07_Data_Dictionary.xlsx)
 
 ---
 

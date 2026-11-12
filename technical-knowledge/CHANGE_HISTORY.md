@@ -147,4 +147,14 @@ To preserve compatibility and prevent regressions during future development spri
 * **Documentation Synchronization:** Updated `ENVIRONMENT.md`, `SESSION_CONTEXT.md`, `README.md`, and `DATABRICKS_SERVERLESS_ARCHITECTURE.md` to reflect the 4-tier separation matrix.
 * **Stage 3 Prepared:** Formulated non-credential-bearing test harness (`tests/test_remote_connection.py`) and detailed individual authentication workflows pending explicit user authorization.
 
+---
+
+## 8. Phase 1 Deliverables Completion & `01_Project_Documentation/` Cleanup (November 11–12, 2026)
+
+* **7 Formal Phase 1 Deliverables Compiled:** Replaced earlier draft submissions with the full 7-file syllabus-compliant Phase 1 package (`01_Project_Proposal.pdf` through `07_Data_Dictionary.xlsx`), featuring 12 business questions (BQ1–BQ12) and 3-tier high-resolution diagrams (`Conceptual_Model_Diagram.png`, `Logical_Model_Diagram.png`, `Physical_Model_Diagram.png`).
+* **Build Scripts Organized:** Isolated all diagram/HTML/PDF automation scripts inside [`archived/Phase_1_Submission/scripts/`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/archived/Phase_1_Submission/scripts), updating [`compile_all_phase1_deliverables.py`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/archived/Phase_1_Submission/scripts/compile_all_phase1_deliverables.py) to sync only the 7 official deliverables without emitting duplicate `Requirements.pdf` or `Schema.pdf` aliases.
+* **`01_Project_Documentation/` Cleaned:** Purged superseded legacy schema/duplicate files (`Data_Dictionary.xlsx`, `Requirements.md`, `Requirements.pdf`, `Schema.pdf`, `Schema.png`, and `schema_diagram_mermaid.md`). Preserved [`Architecture.pdf`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/Architecture.pdf) and [`Architecture.png`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/Architecture.png) (restored per user request), the 7 official deliverables, active technical specs (`DATA_SOURCES_MASTER_SPECIFICATION.md`, `column_removal_map.md`), `course_requirements/`, and `Team_Guides/`.
+* **Index Synchronization:** Updated [`01_Project_Documentation/README.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/README.md), [`DATA_SOURCES_MASTER_SPECIFICATION.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/DATA_SOURCES_MASTER_SPECIFICATION.md), root [`README.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/README.md), [`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md), and [`PROJECT_PROFILE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/technical-knowledge/PROJECT_PROFILE.md) to reflect actual repository contents.
+
+
 

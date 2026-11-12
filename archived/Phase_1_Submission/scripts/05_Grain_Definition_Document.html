@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deliverable 5: Grain Definition Document</title>
+<style>
+@page {
+    size: A4;
+    margin: 20mm 16mm 20mm 16mm;
+    @bottom-right {
+        content: counter(page);
+    }
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1E293B;
+    line-height: 1.55;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+}
+.cover-page {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 90vh;
+    padding-top: 40px;
+}
+.cover-tag {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0284C7;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+.cover-title {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    margin-bottom: 16px;
+}
+.cover-subtitle {
+    font-size: 13.5pt;
+    color: #475569;
+    line-height: 1.4;
+    margin-bottom: 35px;
+}
+.cover-divider {
+    width: 80px;
+    height: 5px;
+    background-color: #0284C7;
+    margin-bottom: 35px;
+}
+.cover-meta {
+    font-size: 10.5pt;
+    color: #334155;
+    margin-top: 15px;
+    border-left: 3px solid #CBD5E1;
+    padding-left: 15px;
+}
+.cover-team-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 25px;
+}
+.cover-team-table th {
+    background-color: #0F172A;
+    color: #FFFFFF;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 9.5pt;
+}
+.cover-team-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 9.5pt;
+}
+h1 {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #0F172A;
+    border-bottom: 2px solid #E2E8F0;
+    padding-bottom: 5px;
+    margin-top: 25px;
+    page-break-after: avoid;
+}
+h2 {
+    font-size: 12.5pt;
+    font-weight: 700;
+    color: #0369A1;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #0F172A;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+}
+p {
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-align: justify;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+}
+th {
+    background-color: #0F172A;
+    color: #FFFFFF;
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 9px;
+    border: 1px solid #0F172A;
+}
+td {
+    padding: 6px 9px;
+    border: 1px solid #CBD5E1;
+    vertical-align: top;
+}
+tr:nth-child(even) {
+    background-color: #F8FAFC;
+}
+.grain-card {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-top: 4px solid #059669;
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+}
+.grain-title {
+    font-size: 11pt;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 6px;
+}
+.grain-quote {
+    background: #F0FDF4;
+    border-left: 3px solid #059669;
+    padding: 8px 12px;
+    font-style: italic;
+    font-size: 9.5pt;
+    color: #065F46;
+    margin: 8px 0;
+}
+.page-break {
+    page-break-after: always;
+}
+code {
+    font-family: "Consolas", monospace;
+    font-size: 8pt;
+    background-color: #F1F5F9;
+    padding: 1px 3px;
+    border-radius: 3px;
+    color: #0F172A;
+}
+</style>
+</head>
+<body>
+
+<div class="cover-page">
+    <div class="cover-tag">DL3004 Data Warehousing & Business Intelligence • Phase 1 Deliverable</div>
+    <div class="cover-title">Grain Definition & Dimensional Additivity Document</div>
+    <div class="cover-subtitle">Formal Declarations of Atomic & Aggregate Granularity, Multi-Grain Bus Matrix Standards, Metric Additivity Rules, and Cross-Grain Reconciliation Contracts</div>
+    <div class="cover-divider"></div>
+    <div class="cover-meta">
+        <strong>Academic Course:</strong> DL3004 Data Warehousing & Business Intelligence (DWBI)<br>
+        <strong>Institution:</strong> FAST National University of Computer & Emerging Sciences<br>
+        <strong>Faculty / Instructor:</strong> Shahzeb Mubashar<br>
+        <strong>Submission Phase:</strong> Phase 1: Business Analysis & Dimensional Design (30% Weight)<br>
+        <strong>Submission Date:</strong> November 2026
+    </div>
+    
+    <table class="cover-team-table">
+        <thead>
+            <tr>
+                <th>Teammate Name</th>
+                <th>Roll Number</th>
+                <th>Work Package Ownership & Course Responsibilities</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Muhammad Ibrahim</strong></td>
+                <td>24L-2602</td>
+                <td><strong>WP1 Lead:</strong> Ingestion, Multi-Source Raw Landing & Bronze Lakehouse Architecture</td>
+            </tr>
+            <tr>
+                <td><strong>Rai Fahad Sultan</strong></td>
+                <td>24L-2509</td>
+                <td><strong>WP2 Lead:</strong> Data Quality Rules Engine, Dead-Letter Quarantine & Silver Conformance</td>
+            </tr>
+            <tr>
+                <td><strong>Muhammad Ayyan</strong></td>
+                <td>24L-2568</td>
+                <td><strong>WP3 Lead:</strong> Kimball Dimensional Modeling, Star Schema Bus Matrix & Gold Layer</td>
+            </tr>
+            <tr>
+                <td><strong>Taha Imran</strong></td>
+                <td>24L-2560</td>
+                <td><strong>WP4 Lead:</strong> Analytical OLAP Engineering, Power BI DirectQuery Dashboard & Tuning</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h1>1. Kimball Grain Principles & Granularity Foundations</h1>
+<p>
+In the Kimball dimensional modeling methodology, declaring the grain is the single most critical step in designing a dimensional data warehouse. Ralph Kimball famously stated:
+</p>
+<blockquote>
+    <em>"The grain is the binding contract on the fact table. The grain specifies exactly what an individual fact table record represents. Every candidate dimension and fact measure must be completely consistent with the declared grain."</em> (Kimball & Ross, 2013)
+</blockquote>
+<p>
+Attempting to introduce dimensions or measures that do not conform to the declared grain results in catastrophic modeling failures, such as fan-out Cartesian joins, duplicate counting of physical quantities, or severe data corruption.
+</p>
+<p>
+In the electric power generation and environmental monitoring domain, data naturally exists at multiple distinct grains that cannot be forced into a single monolithic table without destroying either temporal resolution or facility specificity:
+</p>
+<ul>
+    <li>Continuous smokestack emissions (EPA CAMPD) are captured at the <strong>unit-hour grain</strong>.</li>
+    <li>Fuel consumption and generation accounting (EIA-923) are captured at the <strong>facility-month grain</strong>.</li>
+    <li>Transmission grid demand and dispatch (EIA-930) are captured at the <strong>balancing-authority-hour grain</strong>.</li>
+</ul>
+<p>
+To respect the natural grain of each source while enabling unified cross-domain analytics, our design defines three dedicated fact tables representing three distinct Kimball fact table archetypes.
+</p>
+
+<div class="page-break"></div>
+
+<h1>2. Formal Fact Table Grain Declarations</h1>
+
+<!-- Fact 1 -->
+<div class="grain-card">
+    <div class="grain-title">1. FACT_HOURLY_EMISSIONS_WEATHER (Transactional Fact)</div>
+    <div class="grain-quote">
+        <strong>Formal Grain Declaration:</strong><br>
+        "One row represents continuous smokestack emissions, gross electricity output, thermal heat input, and nearest surface meteorological observations for one generating unit at a power plant during one clock hour."
+    </div>
+    <p><strong>Primary Key:</strong> Composite natural PK <code>(date_key, hour_of_day, plant_key, unit_id)</code></p>
+    <p><strong>Temporal Grain:</strong> Clock hour (0 to 23) within a calendar date (Smart integer <code>YYYYMMDD</code>).</p>
+    <p><strong>Physical Entity Grain:</strong> Individual smokestack continuous emission monitoring system (CEMS) generating unit (<code>unit_id</code>) linked to parent plant (<code>plant_key</code>).</p>
+    <p><strong>Spatial Meteorological Resolution:</strong> Spatially matched to the nearest NOAA synoptic surface station (<code>station_key</code>) within &le; 50 km and &plusmn; 60 minutes.</p>
+    <p><strong>Cardinality & Volume:</strong> Highest volume table in the warehouse. Exceeds 100,000+ fact rows across active thermal generating fleets.</p>
+</div>
+
+<!-- Fact 2 -->
+<div class="grain-card" style="border-top-color: #0284C7;">
+    <div class="grain-title">2. FACT_MONTHLY_PLANT_OPERATIONS (Periodic Snapshot Fact)</div>
+    <div class="grain-quote" style="background: #F0F9FF; border-left-color: #0284C7; color: #0369A1;">
+        <strong>Formal Grain Declaration:</strong><br>
+        "One row represents cumulative monthly net electricity generation, thermal fuel consumption, physical fuel quantity, operating heat rate efficiency, delivered fuel cost, and ending stockpiles for one power plant facility, prime mover technology, and energy source category during one calendar month."
+    </div>
+    <p><strong>Primary Key:</strong> Surrogate key <code>snapshot_key</code> (BIGINT IDENTITY). Logical uniqueness enforced on <code>(month_start_date_key, plant_key, prime_mover_code, energy_source_code)</code>.</p>
+    <p><strong>Temporal Grain:</strong> Calendar month (represented by <code>month_start_date_key</code> = first day of the month, e.g., <code>20230101</code>).</p>
+    <p><strong>Physical Entity Grain:</strong> Facility-level cross-tabulation of prime mover (e.g., <code>ST</code>, <code>GT</code>, <code>CT</code>, <code>CA</code>) and energy source fuel category (e.g., <code>NG</code>, <code>SUB</code>, <code>BIT</code>).</p>
+    <p><strong>Legitimate Negative Measures:</strong> Net generation (<code>net_generation_mwh</code>) can legitimately be negative when an offline power plant consumes auxiliary station service power from the grid during maintenance. This is a valid physical event.</p>
+</div>
+
+<!-- Fact 3 -->
+<div class="grain-card" style="border-top-color: #D97706;">
+    <div class="grain-title">3. FACT_REGIONAL_GRID_DEMAND (Aggregate Grid Fact)</div>
+    <div class="grain-quote" style="background: #FFFBEB; border-left-color: #D97706; color: #92400E;">
+        <strong>Formal Grain Declaration:</strong><br>
+        "One row represents macro real-time electric demand, day-ahead forecasted demand, net electrical generation categorized by six primary fuel technologies, and net interchange power flows for one regional balancing authority during one clock hour."
+    </div>
+    <p><strong>Primary Key:</strong> Composite natural PK <code>(date_key, hour_of_day, ba_key)</code>.</p>
+    <p><strong>Temporal Grain:</strong> Clock hour (0 to 23) within a calendar date (Smart integer <code>YYYYMMDD</code>).</p>
+    <p><strong>Physical Entity Grain:</strong> Entire regional transmission balancing authority territory (e.g., PJM, CAISO, ERCOT, MISO).</p>
+    <p><strong>Categorical Fuel Mix Granularity:</strong> Six mutually exclusive generation channels: Coal, Natural Gas, Nuclear, Hydro, Wind, Solar, plus Net Interchange.</p>
+</div>
+
+<div class="page-break"></div>
+
+<h1>3. Fact Measure Additivity Classification Matrix</h1>
+<p>
+Kimball dimensional modeling classifies numeric fact measures into three strict categories of additivity: <strong>Fully Additive</strong> (can be meaningfully summed across all dimensions), <strong>Semi-Additive</strong> (can be summed across some dimensions such as geography or units, but never across time), and <strong>Non-Additive</strong> (cannot be summed across any dimension; must be recomputed as ratios or averaged).
+</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Fact Table</th>
+            <th>Measure Name</th>
+            <th>Additivity Class</th>
+            <th>Safe Aggregation Rule</th>
+            <th>Disallowed Aggregation (Risk)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td><code>gross_load_mw</code></td>
+            <td><strong>Fully Additive</strong></td>
+            <td><code>SUM()</code> across units, plants, and hours.</td>
+            <td>None.</td>
+        </tr>
+        <tr>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td><code>heat_input_mmbtu</code></td>
+            <td><strong>Fully Additive</strong></td>
+            <td><code>SUM()</code> across units, plants, and hours.</td>
+            <td>None.</td>
+        </tr>
+        <tr>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td><code>co2_mass_tons</code></td>
+            <td><strong>Fully Additive</strong></td>
+            <td><code>SUM()</code> across units, plants, and hours.</td>
+            <td>None.</td>
+        </tr>
+        <tr>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td><code>so2_mass_lbs</code>, <code>nox_mass_lbs</code></td>
+            <td><strong>Fully Additive</strong></td>
+            <td><code>SUM()</code> across units, plants, and hours.</td>
+            <td>None.</td>
+        </tr>
+        <tr>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td><code>ambient_temp_celsius</code></td>
+            <td><strong>Non-Additive</strong></td>
+            <td><code>AVG()</code> or <code>MIN()</code> / <code>MAX()</code>.</td>
+            <td><code>SUM()</code> produces meaningless temperatures.</td>
+        </tr>
+        <tr>
+            <td><code>fact_hourly_emissions_weather</code></td>
+            <td><code>wind_speed_mps</code></td>
+            <td><strong>Non-Additive</strong></td>
+            <td><code>AVG()</code> across hours.</td>
+            <td><code>SUM()</code> produces invalid wind velocities.</td>
+        </tr>
+        <tr>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td><code>net_generation_mwh</code></td>
+            <td><strong>Fully Additive</strong></td>
+            <td><code>SUM()</code> across plants and months.</td>
+            <td>Allows negative sums during fleet outages.</td>
+        </tr>
+        <tr>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td><code>fuel_consumed_mmbtu</code></td>
+            <td><strong>Fully Additive</strong></td>
+            <td><code>SUM()</code> across plants and months.</td>
+            <td>None.</td>
+        </tr>
+        <tr>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td><code>fuel_consumed_physical</code></td>
+            <td><strong>Semi-Additive</strong></td>
+            <td><code>SUM()</code> only within same fuel type.</td>
+            <td>Summing Coal Tons with Gas Mcf corrupts units.</td>
+        </tr>
+        <tr>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td><code>avg_heat_rate_btu_kwh</code></td>
+            <td><strong>Non-Additive Ratio</strong></td>
+            <td>Recompute: <code>SUM(MMBtu)*1E6 / SUM(MWh)*1E3</code>.</td>
+            <td><code>SUM()</code> or <code>AVG()</code> introduces mathematical bias.</td>
+        </tr>
+        <tr>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td><code>delivered_fuel_cost_per_mmbtu</code></td>
+            <td><strong>Non-Additive Ratio</strong></td>
+            <td>Weighted Average: <code>SUM(Cost*MMBtu) / SUM(MMBtu)</code>.</td>
+            <td>Simple <code>AVG()</code> ignores fuel batch volume weighting.</td>
+        </tr>
+        <tr>
+            <td><code>fact_monthly_plant_operations</code></td>
+            <td><code>ending_fuel_stock_physical</code></td>
+            <td><strong>Semi-Additive</strong></td>
+            <td>Latest snapshot value per month.</td>
+            <td><code>SUM()</code> across months duplicates warehouse stocks.</td>
+        </tr>
+        <tr>
+            <td><code>fact_regional_grid_demand</code></td>
+            <td><code>demand_mw</code></td>
+            <td><strong>Semi-Additive</strong></td>
+            <td><code>SUM()</code> across BAs for same hour; <code>AVG()</code> over time.</td>
+            <td><code>SUM()</code> across 24 hours inflates instantaneous MW.</td>
+        </tr>
+        <tr>
+            <td><code>fact_regional_grid_demand</code></td>
+            <td><code>net_gen_*_mw</code></td>
+            <td><strong>Semi-Additive</strong></td>
+            <td><code>SUM()</code> across BAs for same hour; <code>AVG()</code> over time.</td>
+            <td><code>SUM()</code> across hours distorts dispatch power.</td>
+        </tr>
+        <tr>
+            <td><code>fact_regional_grid_demand</code></td>
+            <td><code>net_interchange_mw</code></td>
+            <td><strong>Semi-Additive</strong></td>
+            <td><code>SUM()</code> across BAs for same hour (net sum = 0).</td>
+            <td>Summing across time obscures flow directionality.</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h1>4. Physical Units of Measure & Standardization Standards</h1>
+<p>
+To eliminate unit ambiguity across federal agencies, the Silver layer enforces rigorous unit transformations prior to Gold fact table population:
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Domain Parameter</th>
+            <th>Source Agency & Format</th>
+            <th>Conformed Gold Unit</th>
+            <th>Standard Transformation Formula</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Electrical Generation (Hourly)</td>
+            <td>EPA CEMS (Gross Load MW)</td>
+            <td><strong>MW (Megawatts)</strong></td>
+            <td>Direct numeric cast: <code>gross_load_mw::NUMERIC(12,4)</code></td>
+        </tr>
+        <tr>
+            <td>Electrical Generation (Monthly)</td>
+            <td>EIA-923 (Megawatthours)</td>
+            <td><strong>MWh (Megawatt-hours)</strong></td>
+            <td>Unpivoted monthly columns coerced: <code>netgen_mwh::NUMERIC(14,4)</code></td>
+        </tr>
+        <tr>
+            <td>Thermal Energy Input</td>
+            <td>EPA / EIA (MMBtu)</td>
+            <td><strong>MMBtu</strong></td>
+            <td>Million British thermal units (10^6 Btu).</td>
+        </tr>
+        <tr>
+            <td>Sulfur Dioxide (SO2)</td>
+            <td>EPA CAMPD (lbs)</td>
+            <td><strong>lbs (Pounds Mass)</strong></td>
+            <td>Direct numeric cast: <code>so2_mass_lbs::NUMERIC(14,4)</code></td>
+        </tr>
+        <tr>
+            <td>Nitrogen Oxides (NOx)</td>
+            <td>EPA CAMPD (lbs)</td>
+            <td><strong>lbs (Pounds Mass)</strong></td>
+            <td>Direct numeric cast: <code>nox_mass_lbs::NUMERIC(14,4)</code></td>
+        </tr>
+        <tr>
+            <td>Carbon Dioxide (CO2)</td>
+            <td>EPA CAMPD (Short Tons)</td>
+            <td><strong>Short Tons (2,000 lbs)</strong></td>
+            <td>Direct numeric cast: <code>co2_mass_tons::NUMERIC(14,4)</code></td>
+        </tr>
+        <tr>
+            <td>Ambient Air Temperature</td>
+            <td>NOAA ISD (Tenths of °C)</td>
+            <td><strong>°C (Celsius)</strong></td>
+            <td>Transformed: air_temp_c = raw_temp / 10.0</td>
+        </tr>
+        <tr>
+            <td>Surface Wind Speed</td>
+            <td>NOAA ISD (Tenths of m/s)</td>
+            <td><strong>m/s (Meters per Second)</strong></td>
+            <td>Transformed: wind_speed_mps = raw_wind / 10.0</td>
+        </tr>
+        <tr>
+            <td>Thermal Heat Rate</td>
+            <td>EIA-923 / EPA CAMPD</td>
+            <td><strong>Btu/kWh</strong></td>
+            <td>Calculated: Heat Rate = (Fuel Input MMBtu * 1,000,000) / (Net Generation MWh * 1,000)</td>
+        </tr>
+    </tbody>
+</table>
+
+<h1>5. Cross-Grain Reconciliation & Cartesian Trap Prevention</h1>
+<p>
+A common pitfall in multi-grain dimensional warehouses is the <strong>Cartesian Join Trap</strong> (or Chasm Trap), which occurs when an analyst attempts to join two fact tables at different grains directly in a single SQL query (e.g., joining <code>fact_hourly_emissions_weather</code> directly to <code>fact_monthly_plant_operations</code> on <code>plant_key</code>). Because one monthly plant row matches 744 hourly unit rows, measures from the monthly table will be multiplied by 744, producing massive overcounting.
+</p>
+<p>
+<strong>Architectural Rule for Multi-Grain Reconciliation:</strong>
+To reconcile or compare data across different grains, queries must <strong>always pre-aggregate each fact table to the common grain</strong> within independent Common Table Expressions (CTEs) before joining:
+</p>
+<pre><code>-- CORRECT: Pre-aggregating hourly fact to monthly grain before joining
+WITH epa_monthly AS (
+    SELECT plant_key,
+           SUBSTRING(CAST(date_key AS VARCHAR), 1, 6) AS yyyymm,
+           SUM(gross_load_mw) AS epa_gross_mwh
+    FROM gold_warehouse.fact_hourly_emissions_weather
+    GROUP BY plant_key, SUBSTRING(CAST(date_key AS VARCHAR), 1, 6)
+)
+SELECT p.plant_name, e.yyyymm, e.epa_gross_mwh, m.net_generation_mwh AS eia_net_mwh
+FROM epa_monthly e
+JOIN gold_warehouse.fact_monthly_plant_operations m 
+  ON e.plant_key = m.plant_key
+JOIN gold_warehouse.dim_plant p 
+  ON e.plant_key = p.plant_key;
+</code></pre>
+
+</body>
+</html>

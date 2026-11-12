@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deliverable 6: Schema Diagrams Specification</title>
+<style>
+@page {
+    size: A4 landscape;
+    margin: 15mm 15mm 15mm 15mm;
+    @bottom-right {
+        content: counter(page);
+    }
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1E293B;
+    line-height: 1.5;
+    font-size: 9.5pt;
+    margin: 0;
+    padding: 0;
+}
+.cover-page {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 85vh;
+    padding: 40px;
+}
+.cover-tag {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0284C7;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+.cover-title {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    margin-bottom: 16px;
+}
+.cover-subtitle {
+    font-size: 13pt;
+    color: #475569;
+    line-height: 1.4;
+    margin-bottom: 30px;
+}
+.cover-divider {
+    width: 80px;
+    height: 5px;
+    background-color: #0284C7;
+    margin-bottom: 30px;
+}
+.cover-meta {
+    font-size: 10pt;
+    color: #334155;
+    border-left: 3px solid #CBD5E1;
+    padding-left: 15px;
+    margin-bottom: 25px;
+}
+.cover-team-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.cover-team-table th {
+    background-color: #0F172A;
+    color: #FFFFFF;
+    text-align: left;
+    padding: 7px 10px;
+    font-size: 9pt;
+}
+.cover-team-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 9pt;
+}
+h1 {
+    font-size: 15pt;
+    font-weight: 800;
+    color: #0F172A;
+    border-bottom: 2px solid #E2E8F0;
+    padding-bottom: 4px;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+}
+h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #0369A1;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+}
+p {
+    margin-top: 0;
+    margin-bottom: 8px;
+    text-align: justify;
+}
+.diagram-box {
+    text-align: center;
+    margin: 10px 0;
+    page-break-inside: avoid;
+}
+.diagram-box img {
+    max-width: 98%;
+    max-height: 520px;
+    height: auto;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.caption {
+    font-size: 8pt;
+    color: #64748B;
+    font-style: italic;
+    margin-top: 4px;
+    text-align: center;
+}
+.page-break {
+    page-break-after: always;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 8pt;
+}
+th {
+    background-color: #0F172A;
+    color: #FFFFFF;
+    padding: 6px 8px;
+    text-align: left;
+}
+td {
+    padding: 5px 8px;
+    border: 1px solid #CBD5E1;
+}
+tr:nth-child(even) { background-color: #F8FAFC; }
+</style>
+</head>
+<body>
+
+<div class="cover-page">
+    <div class="cover-tag">DL3004 Data Warehousing & Business Intelligence • Phase 1 Deliverable</div>
+    <div class="cover-title">Multi-Tier Schema Design Specification (Conceptual, Logical & Physical)</div>
+    <div class="cover-subtitle">Progressive Dimensional Architecture: High-Level Business Entities, Kimball Logical Star Schema, and Physical Delta Lake DDL with Liquid Clustering</div>
+    <div class="cover-divider"></div>
+    <div class="cover-meta">
+        <strong>Academic Course:</strong> DL3004 Data Warehousing & Business Intelligence (DWBI)<br>
+        <strong>Institution:</strong> FAST National University of Computer & Emerging Sciences<br>
+        <strong>Faculty / Instructor:</strong> Shahzeb Mubashar<br>
+        <strong>Submission Phase:</strong> Phase 1: Business Analysis & Dimensional Design (30% Weight)<br>
+        <strong>Aligned Lab:</strong> Lab 3 (Logical vs. Physical Modeling), Lab 4 (OLAP & Star Schema), Lab 5 (Dimensional Modeling I)<br>
+        <strong>Submission Date:</strong> November 2026
+    </div>
+    
+    <table class="cover-team-table">
+        <thead>
+            <tr>
+                <th>Teammate Name</th>
+                <th>Roll Number</th>
+                <th>Work Package Ownership & Course Responsibilities</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Muhammad Ibrahim</strong></td>
+                <td>24L-2602</td>
+                <td><strong>WP1 Lead:</strong> Ingestion, Multi-Source Raw Landing & Bronze Lakehouse Architecture</td>
+            </tr>
+            <tr>
+                <td><strong>Rai Fahad Sultan</strong></td>
+                <td>24L-2509</td>
+                <td><strong>WP2 Lead:</strong> Data Quality Rules Engine, Dead-Letter Quarantine & Silver Conformance</td>
+            </tr>
+            <tr>
+                <td><strong>Muhammad Ayyan</strong></td>
+                <td>24L-2568</td>
+                <td><strong>WP3 Lead:</strong> Kimball Dimensional Modeling, Star Schema Bus Matrix & Gold Layer</td>
+            </tr>
+            <tr>
+                <td><strong>Taha Imran</strong></td>
+                <td>24L-2560</td>
+                <td><strong>WP4 Lead:</strong> Analytical OLAP Engineering, Power BI DirectQuery Dashboard & Tuning</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h1>1. Multi-Tier Modeling Architecture Overview</h1>
+<p>
+In strict alignment with the course syllabus and Lab 3 (<em>Logical vs. Physical Modeling</em>), dimensional engineering requires a disciplined three-tier architectural progression:
+</p>
+<ol>
+    <li><strong>Conceptual Data Model:</strong> Defines high-level business entities, enterprise subject boundaries, and macroscopic relationships independent of database technology or technical attributes.</li>
+    <li><strong>Logical Dimensional Model:</strong> Establishes the formal Kimball Star Schema structure, defining business keys, conformed dimensions, multi-grain fact archetypes, attribute hierarchies, outrigger links, and Slowly Changing Dimension (SCD Type 2) tracking rules.</li>
+    <li><strong>Physical Data Model:</strong> Specifies target cloud lakehouse storage contracts on Delta Lake, precise ANSI SQL data types, surrogate identity keys, foreign key constraints, explicit grain statements, and Delta Liquid Clustering keys (<code>CLUSTER BY</code>).</li>
+</ol>
+
+<div class="page-break"></div>
+
+<h1>2. Tier 1: Conceptual Data Model</h1>
+<p>
+The Conceptual Model articulates the core business entities and operational processes across federal power generation, atmospheric emissions, and meteorological monitoring:
+</p>
+
+<div class="diagram-box">
+    <img src="file:///D:/Semester Projects/DWBI LAB Project/archived/Phase_1_Submission/Conceptual_Model_Diagram.png" alt="Conceptual Data Model">
+    <div class="caption">Figure 1: Conceptual Data Model — High-Level Business Entities, Operational Processes, and Cardinalities</div>
+</div>
+
+<p><strong>Entity Taxonomy:</strong> Master entities (<code>CALENDAR DATE</code>, <code>BALANCING AUTHORITY</code>, <code>POWER PLANT</code>, <code>GENERATING UNIT</code>, <code>WEATHER STATION</code>) govern three core business events: <code>HOURLY EMISSIONS & WEATHER</code>, <code>MONTHLY PLANT OPERATIONS</code>, and <code>REGIONAL GRID DISPATCH</code>.</p>
+
+<div class="page-break"></div>
+
+<h1>3. Tier 2: Logical Dimensional Model (Kimball Star Schema)</h1>
+<p>
+The Logical Model transforms conceptual entities into a Kimball Star Schema with conformed dimensions and three multi-grain fact archetypes:
+</p>
+
+<div class="diagram-box">
+    <img src="file:///D:/Semester Projects/DWBI LAB Project/archived/Phase_1_Submission/Logical_Model_Diagram.png" alt="Logical Dimensional Model">
+    <div class="caption">Figure 2: Logical Dimensional Model — Kimball Star Schema with Conformed Dimensions, SCD Type 2 Outrigger, and Multi-Grain Facts</div>
+</div>
+
+<p><strong>Kimball Bus Design:</strong> <code>DIM_DATE</code> is conformed across all three facts. <code>DIM_PLANT</code> is conformed across the two facility-level facts. <code>DIM_GENERATOR</code> tracks asset status changes (<code>OP</code> &rarr; <code>RE</code>) via SCD Type 2. <code>DIM_BALANCING_AUTHORITY</code> connects plant-level emissions to regional grid demand via drill-across.</p>
+
+<div class="page-break"></div>
+
+<h1>4. Tier 3: Physical Star Schema Model (Delta Lake DDL & Liquid Clustering)</h1>
+<p>
+The Physical Model implements production relational contracts under Unity Catalog (<code>dwbi_catalog.gold_warehouse</code>), incorporating explicit fact table grain declarations and Delta Lake Liquid Clustering:
+</p>
+
+<div class="diagram-box">
+    <img src="file:///D:/Semester Projects/DWBI LAB Project/archived/Phase_1_Submission/Physical_Model_Diagram.png" alt="Physical Star Schema Model">
+    <div class="caption">Figure 3: Physical Star Schema Model — Delta Lake DDL Types, Liquid Clustering Keys, and Explicit Fact Table Grain Declarations</div>
+</div>
+
+<p><strong>Physical Performance & Governance:</strong> <code>fact_hourly_emissions_weather</code> uses Liquid Clustering on <code>(date_key, plant_key)</code>. Identity surrogate keys (<code>BIGINT IDENTITY</code>) prevent lock-in to external agency identifiers. ANSI SQL data types guarantee numeric precision across billions of calculations.</p>
+
+</body>
+</html>
