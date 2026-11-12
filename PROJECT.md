@@ -63,7 +63,7 @@ Gate: 3 reporting views in gold_marts + OLAP queries execute without error.
 - [x] 4.3 DirectQuery Power BI semantic verification [S]
 
 ## Current
-Stage 1 (Repo hygiene), Stage 2 (Loader correctness), Stage 3 (6-Category Data Quality Engine), and Stage 4 (Real-Data Downloader, Rubric Volume Gate >=100 Dims / >=10,000 Facts, Synthetic Defect Generator, and DEPLOY_RUNBOOK.md) complete. All 75 unit tests green. Next step: Stage 5 - Phase 1 document fixes (extend business questions to >=10, sync view mappings). Suggested model tier: mid.
+Stage 1 (Repo hygiene), Stage 2 (Loader correctness), Stage 3 (6-Category DQ Engine), Stage 4 (Real-Data Downloader, Rubric Volume Gate >=100 Dims / >=10,000 Facts, Synthetic Defect Generator), and Stage 5 (Phase 1 document fixes: 10 Kimball Business Questions with full metadata, grain statements, hierarchies, vw_monthly_generation_mix in Views.sql and Python, OLAP queries 1-11, BRD) are complete. All 83 unit tests green. Next step: Stage 6 - PDF report generation (Data_Cleaning_Report.pdf and Data_Quality_Report.pdf). Suggested model tier: mid.
 
 ## Open issues
 - None.

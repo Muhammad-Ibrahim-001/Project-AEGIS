@@ -22,7 +22,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple, Set
 
 # Add 03_ETL to sys.path
 MODULE_DIR = Path(__file__).resolve().parent
@@ -160,6 +160,34 @@ FROM dwbi_catalog.gold_warehouse.fact_regional_grid_demand g
 JOIN dwbi_catalog.gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
 JOIN dwbi_catalog.gold_warehouse.dim_date d ON g.date_key = d.date_key;
 """
+
+VIEW_DDL_MONTHLY_GENERATION_MIX = """
+CREATE OR REPLACE VIEW dwbi_catalog.gold_marts.vw_monthly_generation_mix AS
+SELECT 
+    d.calendar_year,
+    d.calendar_month,
+    d.month_name,
+    p.state_code,
+    f.prime_mover_code,
+    f.energy_source_code,
+    SUM(f.net_generation_mwh) AS total_net_generation_mwh,
+    SUM(f.fuel_consumed_mmbtu) AS total_fuel_mmbtu,
+    ROUND(
+        SUM(f.fuel_consumed_mmbtu * 1000.0) / NULLIF(SUM(f.net_generation_mwh), 0), 2
+    ) AS weighted_heat_rate_btu_kwh,
+    COUNT(DISTINCT f.plant_key) AS active_plants_count
+FROM dwbi_catalog.gold_warehouse.fact_monthly_plant_operations f
+JOIN dwbi_catalog.gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
+JOIN dwbi_catalog.gold_warehouse.dim_date d ON f.month_start_date_key = d.date_key
+GROUP BY 
+    d.calendar_year,
+    d.calendar_month,
+    d.month_name,
+    p.state_code,
+    f.prime_mover_code,
+    f.energy_source_code;
+"""
+
 
 
 # ==============================================================================
@@ -339,6 +367,64 @@ def execute_vw_grid_stress(
     return results
 
 
+def execute_vw_monthly_generation_mix(
+    fact_monthly: List[Dict[str, Any]],
+    dw: gold.GoldDimensionWarehouse
+) -> List[Dict[str, Any]]:
+    """Simulates `gold_marts.vw_monthly_generation_mix` analytical view in pure Python (BQ10)."""
+    plant_map = {p["plant_key"]: p for p in dw.dim_plant}
+    date_map = {d["date_key"]: d for d in dw.dim_date}
+
+    groups: Dict[Tuple, Dict[str, Any]] = {}
+    for f in fact_monthly:
+        d = date_map.get(f["month_start_date_key"], {
+            "calendar_year": 2023, "calendar_month": 1, "month_name": "January"
+        })
+        p = plant_map.get(f["plant_key"], {"state_code": "NA"})
+
+        grp_key = (
+            d["calendar_year"],
+            d["calendar_month"],
+            d["month_name"],
+            p.get("state_code", "NA"),
+            f.get("prime_mover_code", "UN"),
+            f.get("energy_source_code", "UN")
+        )
+
+        if grp_key not in groups:
+            groups[grp_key] = {
+                "total_net_mwh": 0.0,
+                "total_fuel_mmbtu": 0.0,
+                "plants": set()
+            }
+
+        g = groups[grp_key]
+        g["total_net_mwh"] += f.get("net_generation_mwh") or 0.0
+        g["total_fuel_mmbtu"] += f.get("fuel_consumed_mmbtu") or 0.0
+        g["plants"].add(f["plant_key"])
+
+    results = []
+    for grp_key, g in groups.items():
+        net_mwh = round(g["total_net_mwh"], 2)
+        fuel_mmbtu = round(g["total_fuel_mmbtu"], 2)
+        weighted_hr = round((g["total_fuel_mmbtu"] * 1000.0) / g["total_net_mwh"], 2) if g["total_net_mwh"] > 0 else None
+
+        results.append({
+            "calendar_year": grp_key[0],
+            "calendar_month": grp_key[1],
+            "month_name": grp_key[2],
+            "state_code": grp_key[3],
+            "prime_mover_code": grp_key[4],
+            "energy_source_code": grp_key[5],
+            "total_net_generation_mwh": net_mwh,
+            "total_fuel_mmbtu": fuel_mmbtu,
+            "weighted_heat_rate_btu_kwh": weighted_hr,
+            "active_plants_count": len(g["plants"])
+        })
+
+    return results
+
+
 # ==============================================================================
 # 3. MASTER REPORTING MARTS PROVISIONING SUITE
 # ==============================================================================
@@ -348,7 +434,7 @@ def run_reporting_marts_suite(
     master_batch_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Deploys or simulates the 3 Power BI DirectQuery reporting views in `gold_marts`.
+    Deploys or simulates the 4 Power BI DirectQuery reporting views in `gold_marts`.
     Logs audit execution to `etl_run_log`.
     """
     master_batch_id = master_batch_id or bronze.generate_batch_id("MARTS_MASTER")
@@ -369,6 +455,9 @@ def run_reporting_marts_suite(
 
             spark_session.sql(VIEW_DDL_GRID_STRESS)
             print("✓ Created View: dwbi_catalog.gold_marts.vw_grid_stress")
+
+            spark_session.sql(VIEW_DDL_MONTHLY_GENERATION_MIX)
+            print("✓ Created View: dwbi_catalog.gold_marts.vw_monthly_generation_mix")
         except Exception as e:
             print(f"[WARN] View creation warning in Spark session: {e}")
 
@@ -394,6 +483,7 @@ def run_reporting_marts_suite(
     res_emissions = execute_vw_emissions_intensity(fact_hourly, dw)
     res_performance = execute_vw_plant_performance(fact_monthly, dw)
     res_stress = execute_vw_grid_stress(fact_grid, dw)
+    res_mix = execute_vw_monthly_generation_mix(fact_monthly, dw)
 
     # 3. Log execution
     bronze.log_etl_run(
@@ -402,7 +492,7 @@ def run_reporting_marts_suite(
         pipeline_step="GOLD_MARTS_DEPLOYMENT",
         source_system="REPORTING_VIEWS",
         records_read=len(fact_hourly) + len(fact_monthly) + len(fact_grid),
-        records_inserted=len(res_emissions) + len(res_performance) + len(res_stress),
+        records_inserted=len(res_emissions) + len(res_performance) + len(res_stress) + len(res_mix),
         records_updated=0,
         records_rejected=0,
         execution_status="SUCCESS",
@@ -415,16 +505,18 @@ def run_reporting_marts_suite(
         "views_deployed": [
             "dwbi_catalog.gold_marts.vw_emissions_intensity",
             "dwbi_catalog.gold_marts.vw_plant_performance",
-            "dwbi_catalog.gold_marts.vw_grid_stress"
+            "dwbi_catalog.gold_marts.vw_grid_stress",
+            "dwbi_catalog.gold_marts.vw_monthly_generation_mix"
         ],
         "vw_emissions_intensity_rows": len(res_emissions),
         "vw_plant_performance_rows": len(res_performance),
         "vw_grid_stress_rows": len(res_stress),
+        "vw_monthly_generation_mix_rows": len(res_mix),
         "execution_status": "SUCCESS"
     }
 
     print("====================================================================")
-    print(f"REPORTING MARTS READY: 3/3 views verified for Power BI DirectQuery.")
+    print(f"REPORTING MARTS READY: 4/4 views verified for Power BI DirectQuery.")
     print("====================================================================")
     return summary
 

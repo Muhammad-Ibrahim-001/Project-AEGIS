@@ -30,7 +30,7 @@ This document is the technical design of the warehouse. It specifies the end-to-
 | 4 | Data quality and quarantine | SQL validation engine, `quarantine` schema | Checks sentinels, types, nulls, duplicates, business rules, and referential integrity. Invalid rows go to `quarantine.rejected_records`; valid rows continue | Clean stream plus a rejection log |
 | 5 | Silver layer | Python and SQL | Conforms units (MWh, MMBtu, lbs, tons), models the boiler-to-generator crosswalk as a bipartite graph, joins weather to plants by nearest station and nearest hour, and runs SCD Type 2 detection for generator status | Cleaned, conformed data in `02_Data/cleaned_data` |
 | 6 | Dimensional data warehouse | `project_dw` | Five conformed dimensions and three Kimball fact tables, with surrogate keys. The hourly emissions fact is partitioned | `dim_*`, `fact_*` |
-| 7 | Gold layer and reporting | `project_reporting` | Business-facing views that aggregate facts to the grain of each dashboard visual | `vw_emissions_intensity`, `vw_plant_performance`, `vw_monthly_generation` |
+| 7 | Gold layer and reporting | `gold_marts` (`project_reporting`) | Business-facing views that aggregate facts to the grain of each dashboard visual | `vw_emissions_intensity`, `vw_plant_performance`, `vw_grid_stress`, `vw_monthly_generation_mix` |
 | 8 | Analytics and BI | SQL, Power BI Desktop | OLAP queries (`ROLLUP`, `CUBE`), window functions, `EXPLAIN ANALYZE` tuning, and a three-page dashboard | `OLAP.sql`, `Views.sql`, `PowerBI.pbix` |
 
 ### 2.2 Technology Stack
@@ -99,10 +99,11 @@ flowchart TD
         end
     end
 
-    subgraph S7["7. GOLD LAYER & REPORTING (project_reporting)"]
+    subgraph S7["7. GOLD LAYER & REPORTING (gold_marts)"]
         V1["vw_emissions_intensity<br/>(Hourly Air Quality & CO2/MW)"]
         V2["vw_plant_performance<br/>(Monthly Efficiency & Fuel Costs)"]
-        V3["vw_monthly_generation<br/>(Regional Renewable Penetration %)"]
+        V3["vw_grid_stress<br/>(Regional Grid Demand & Stress Alerts)"]
+        V4["vw_monthly_generation_mix<br/>(Prime Mover Decarbonization Trends)"]
     end
 
     subgraph S8["8. ANALYTICS & BI DASHBOARD"]
@@ -414,18 +415,19 @@ CREATE TABLE project_dw.fact_hourly_emissions_weather_2023_01
 | :--- | :--- | :--- | :--- |
 | `vw_emissions_intensity` | `fact_hourly_emissions_weather` | Plant per day | Gross load, CO2, SO2, NOx, CO2 intensity, average ambient temperature |
 | `vw_plant_performance` | `fact_monthly_plant_operations` | Plant, prime mover, and fuel per month | Net generation, fuel MMBtu, average heat rate, delivered fuel cost, outage indicator |
-| `vw_monthly_generation` | `fact_regional_grid_demand` | Balancing authority per month | Average and peak demand, generation by fuel, renewable penetration percent |
+| `vw_grid_stress` | `fact_regional_grid_demand` | Hourly per balancing authority | Demand, forecast error, generation by fuel, renewable penetration %, stress alerts |
+| `vw_monthly_generation_mix` | `fact_monthly_plant_operations` | Monthly per state and prime mover | Net generation, fuel MMBtu, weighted heat rate, active plants count |
 
 ---
 
 ## 7. Layer-to-Schema Summary
 
-| Layer | PostgreSQL schema | Tables |
+| Layer | Catalog / Schema | Tables / Objects |
 | :--- | :--- | :--- |
-| Bronze | `project_staging` | 5 `raw_*` tables, `etl_run_log` |
+| Bronze | `bronze_staging` | Raw tables, `etl_run_log` |
 | Quarantine | `quarantine` | `rejected_records` |
-| Warehouse | `project_dw` | 5 dimensions, 3 facts |
-| Gold | `project_reporting` | 3 views |
+| Warehouse | `gold_warehouse` | 5 conformed dimensions, 3 multi-grain facts |
+| Gold | `gold_marts` | 4 reporting views (`vw_emissions_intensity`, `vw_plant_performance`, `vw_grid_stress`, `vw_monthly_generation_mix`) |
 
 ---
 

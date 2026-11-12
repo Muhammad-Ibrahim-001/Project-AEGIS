@@ -11,7 +11,11 @@
 USE CATALOG dwbi_catalog;
 
 -- ==============================================================================
--- 1. MULTI-DIMENSIONAL OLAP CUBE: Generation & Heat Rate by Geography & Fuel Mix
+-- 1. MULTI-DIMENSIONAL OLAP CUBE: Generation & Heat Rate by Geography & Fuel Mix (ANSWERS BQ3)
+-- Analytical Question: BQ3 - Prime Mover & Fuel Thermal Efficiency / Heat Rate Benchmarking
+-- Fact Table:  fact_monthly_plant_operations
+-- Dimensions:  dim_plant, dim_date
+-- Measures:    net_generation_mwh, fuel_consumed_mmbtu, avg_heat_rate_btu_kwh
 -- Demonstrates full combinatorial cross-tabulation across Year, State, and Fuel.
 -- ==============================================================================
 SELECT 
@@ -35,7 +39,11 @@ ORDER BY
 
 
 -- ==============================================================================
--- 2. HIERARCHICAL OLAP ROLLUP: Temporal & Spatial Grid Demand Slicing
+-- 2. HIERARCHICAL OLAP ROLLUP: Temporal & Spatial Grid Demand Slicing (ANSWERS BQ5)
+-- Analytical Question: BQ5 - Balancing Authority Peak Demand, Renewable Penetration & Interchanges
+-- Fact Table:  fact_regional_grid_demand
+-- Dimensions:  dim_balancing_authority, dim_date
+-- Measures:    demand_mw, net_gen_wind_mw, net_gen_solar_mw, renewable_coverage_pct
 -- Hierarchical aggregation: Year -> Quarter -> Month -> Balancing Authority.
 -- ==============================================================================
 SELECT 
@@ -61,7 +69,11 @@ ORDER BY
 
 
 -- ==============================================================================
--- 3. WINDOW FUNCTIONS: Month-Over-Month Ramp Rate, Growth % & Prior Year Lag
+-- 3. WINDOW FUNCTIONS: Month-Over-Month Ramp Rate, Growth % & Prior Year Lag (ANSWERS BQ10)
+-- Analytical Question: BQ10 - Multi-Year Generation Trends & Decarbonization by Prime Mover
+-- Fact Table:  fact_monthly_plant_operations
+-- Dimensions:  dim_plant, dim_date
+-- Measures:    current_net_mwh, mom_growth_pct, moving_avg_3month_mwh
 -- ==============================================================================
 WITH monthly_plant_totals AS (
     SELECT 
@@ -109,7 +121,11 @@ ORDER BY plant_name, calendar_year, calendar_month;
 
 
 -- ==============================================================================
--- 4. WINDOW FUNCTIONS: Facility Emissions Intensity Benchmarking & Dense Ranking
+-- 4. WINDOW FUNCTIONS: Facility Emissions Intensity Benchmarking & Dense Ranking (ANSWERS BQ1)
+-- Analytical Question: BQ1 - Facility Emissions Intensity & Regional Distribution
+-- Fact Table:  fact_hourly_emissions_weather
+-- Dimensions:  dim_plant, dim_date
+-- Measures:    gross_load_mw, co2_mass_tons, co2_intensity_tons_per_mw
 -- ==============================================================================
 WITH plant_annual_emissions AS (
     SELECT 
@@ -163,4 +179,258 @@ JOIN gold_warehouse.dim_date d ON f.date_key = d.date_key
 WHERE f.date_key BETWEEN 20230101 AND 20230131
   AND f.plant_key = 1
 GROUP BY d.calendar_date, p.plant_name;
+
+
+-- ==============================================================================
+-- 6. WEATHER EXTREMES VS EMISSIONS & LOAD IMPACT (ANSWERS BQ2)
+-- Analytical Question: BQ2 - Synoptic Weather Stress vs Emissions & Generation
+-- Fact Table:  fact_hourly_emissions_weather
+-- Dimensions:  dim_plant, dim_weather_station, dim_date
+-- Measures:    gross_load_mw, co2_mass_tons, ambient_temp_celsius, wind_speed_mps
+-- Business Intent: Evaluates plant efficiency derating and emissions intensity 
+--                  under freezing, moderate, and extreme heat temperature regimes.
+-- ==============================================================================
+SELECT 
+    CASE 
+        WHEN f.ambient_temp_celsius < 0.0 THEN '1_FREEZING_BELOW_0C'
+        WHEN f.ambient_temp_celsius BETWEEN 0.0 AND 15.0 THEN '2_COLD_0_TO_15C'
+        WHEN f.ambient_temp_celsius BETWEEN 15.01 AND 28.0 THEN '3_MODERATE_15_TO_28C'
+        WHEN f.ambient_temp_celsius > 28.0 THEN '4_EXTREME_HEAT_ABOVE_28C'
+        ELSE '5_UNKNOWN_TEMPERATURE'
+    END AS temperature_regime,
+    COUNT(*) AS total_operating_hours,
+    ROUND(AVG(f.gross_load_mw), 2) AS avg_hourly_gross_load_mw,
+    ROUND(SUM(f.gross_load_mw), 2) AS total_gross_generation_mw,
+    ROUND(SUM(f.co2_mass_tons), 2) AS total_co2_mass_tons,
+    ROUND(
+        SUM(f.co2_mass_tons) / NULLIF(SUM(f.gross_load_mw), 0), 4
+    ) AS co2_intensity_tons_per_mw,
+    ROUND(AVG(f.wind_speed_mps), 2) AS avg_wind_speed_mps,
+    ROUND(AVG(f.weather_distance_km), 2) AS avg_station_distance_km
+FROM gold_warehouse.fact_hourly_emissions_weather f
+JOIN gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
+JOIN gold_warehouse.dim_date d ON f.date_key = d.date_key
+WHERE f.ambient_temp_celsius IS NOT NULL
+GROUP BY 
+    CASE 
+        WHEN f.ambient_temp_celsius < 0.0 THEN '1_FREEZING_BELOW_0C'
+        WHEN f.ambient_temp_celsius BETWEEN 0.0 AND 15.0 THEN '2_COLD_0_TO_15C'
+        WHEN f.ambient_temp_celsius BETWEEN 15.01 AND 28.0 THEN '3_MODERATE_15_TO_28C'
+        WHEN f.ambient_temp_celsius > 28.0 THEN '4_EXTREME_HEAT_ABOVE_28C'
+        ELSE '5_UNKNOWN_TEMPERATURE'
+    END
+ORDER BY temperature_regime;
+
+
+-- ==============================================================================
+-- 7. PLANT AUXILIARY LOAD OUTAGES & NEGATIVE NET GENERATION AUDIT (ANSWERS BQ4)
+-- Analytical Question: BQ4 - Station Auxiliary Outages & Negative Net Generation
+-- Fact Table:  fact_monthly_plant_operations
+-- Dimensions:  dim_plant, dim_date
+-- Measures:    net_generation_mwh, fuel_consumed_mmbtu, outage_frequency
+-- Business Intent: Audits offline power plants consuming auxiliary station grid
+--                  power during extended maintenance or unplanned shutdowns.
+-- ==============================================================================
+SELECT 
+    d.calendar_year,
+    p.orispl_code,
+    p.plant_name,
+    p.state_code,
+    f.prime_mover_code,
+    COUNT(CASE WHEN f.net_generation_mwh < 0 THEN 1 END) AS negative_generation_months,
+    COUNT(*) AS total_reported_months,
+    ROUND(
+        COUNT(CASE WHEN f.net_generation_mwh < 0 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 2
+    ) AS outage_month_pct,
+    ROUND(SUM(CASE WHEN f.net_generation_mwh < 0 THEN f.net_generation_mwh ELSE 0 END), 2) AS total_auxiliary_consumed_mwh,
+    ROUND(SUM(f.fuel_consumed_mmbtu), 2) AS auxiliary_fuel_consumed_mmbtu
+FROM gold_warehouse.fact_monthly_plant_operations f
+JOIN gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
+JOIN gold_warehouse.dim_date d ON f.month_start_date_key = d.date_key
+GROUP BY 
+    d.calendar_year,
+    p.orispl_code,
+    p.plant_name,
+    p.state_code,
+    f.prime_mover_code
+HAVING COUNT(CASE WHEN f.net_generation_mwh < 0 THEN 1 END) > 0
+ORDER BY d.calendar_year, total_auxiliary_consumed_mwh ASC;
+
+
+-- ==============================================================================
+-- 8. CROSS-AGENCY GENERATION RECONCILIATION & AUXILIARY RATIO AUDIT (ANSWERS BQ6)
+-- Analytical Question: BQ6 - Physical Reconciliation of EPA Gross vs EIA Net Gen
+-- Fact Tables: fact_hourly_emissions_weather, fact_monthly_plant_operations
+-- Dimensions:  dim_plant, dim_date
+-- Measures:    total_gross_mw, total_net_mwh, aux_ratio_pct
+-- Business Intent: Validates thermodynamic law: Gross Generation (CAMPD) >= Net Generation (EIA-923)
+--                  with expected auxiliary station ratio between 3% and 14%.
+-- ==============================================================================
+WITH epa_monthly_gross AS (
+    SELECT 
+        f.plant_key,
+        d.calendar_year,
+        d.calendar_month,
+        SUM(f.gross_load_mw) AS total_gross_mw
+    FROM gold_warehouse.fact_hourly_emissions_weather f
+    JOIN gold_warehouse.dim_date d ON f.date_key = d.date_key
+    GROUP BY f.plant_key, d.calendar_year, d.calendar_month
+),
+eia_monthly_net AS (
+    SELECT 
+        f.plant_key,
+        d.calendar_year,
+        d.calendar_month,
+        SUM(f.net_generation_mwh) AS total_net_mwh
+    FROM gold_warehouse.fact_monthly_plant_operations f
+    JOIN gold_warehouse.dim_date d ON f.month_start_date_key = d.date_key
+    GROUP BY f.plant_key, d.calendar_year, d.calendar_month
+)
+SELECT 
+    p.orispl_code,
+    p.plant_name,
+    p.state_code,
+    g.calendar_year,
+    g.calendar_month,
+    ROUND(g.total_gross_mw, 2) AS epa_gross_generation_mw,
+    ROUND(n.total_net_mwh, 2) AS eia_net_generation_mwh,
+    ROUND(g.total_gross_mw - n.total_net_mwh, 2) AS auxiliary_load_mwh,
+    ROUND(
+        (g.total_gross_mw - n.total_net_mwh) / NULLIF(g.total_gross_mw, 0) * 100.0, 2
+    ) AS auxiliary_load_ratio_pct,
+    CASE 
+        WHEN n.total_net_mwh > g.total_gross_mw THEN 'PHYSICAL_VIOLATION_NET_EXCEEDS_GROSS'
+        WHEN (g.total_gross_mw - n.total_net_mwh) / NULLIF(g.total_gross_mw, 0) BETWEEN 0.03 AND 0.14 THEN 'PHYSICAL_STANDARD_3_TO_14_PCT'
+        ELSE 'AUXILIARY_ANOMALY_OUTSIDE_BOUNDS'
+    END AS thermodynamic_reconciliation_status
+FROM epa_monthly_gross g
+JOIN eia_monthly_net n ON g.plant_key = n.plant_key 
+                      AND g.calendar_year = n.calendar_year 
+                      AND g.calendar_month = n.calendar_month
+JOIN gold_warehouse.dim_plant p ON g.plant_key = p.plant_key
+ORDER BY g.calendar_year, g.calendar_month, p.orispl_code;
+
+
+-- ==============================================================================
+-- 9. SCD TYPE 2 GENERATOR DECOMMISSIONING & RETIREMENT TRAJECTORY (ANSWERS BQ7)
+-- Analytical Question: BQ7 - Generator Asset Lifecycle & SCD Type 2 Tracking
+-- Dimension:   dim_generator (SCD Type 2), dim_plant
+-- Measures:    nameplate_capacity_mw, historical_version_count, cumulative_retired_mw
+-- Business Intent: Measures coal and gas generating unit retirements vs additions
+--                  over the 2021-2024 compliance timeline.
+-- ==============================================================================
+SELECT 
+    g.orispl_code,
+    p.plant_name,
+    g.generator_id,
+    g.prime_mover_code,
+    g.energy_source_code,
+    g.operating_status AS current_operating_status,
+    g.nameplate_capacity_mw,
+    g.valid_from,
+    g.valid_to,
+    g.is_current,
+    COUNT(*) OVER (PARTITION BY g.orispl_code, g.generator_id) AS total_historical_revisions,
+    CASE 
+        WHEN g.operating_status IN ('RE', 'RET', 'RETIRED') THEN 'DECOMMISSIONED_ASSET'
+        WHEN g.operating_status IN ('SB', 'STANDBY') THEN 'STANDBY_RESERVE'
+        WHEN g.operating_status IN ('OP', 'OPERATING') THEN 'ACTIVE_COMMERCIAL_OPERATION'
+        ELSE 'OTHER_LIFECYCLE_STATE'
+    END AS asset_lifecycle_category
+FROM gold_warehouse.dim_generator g
+LEFT JOIN gold_warehouse.dim_plant p ON g.plant_key = p.plant_key
+WHERE g.generator_key <> -1
+ORDER BY g.orispl_code, g.generator_id, g.valid_from;
+
+
+-- ==============================================================================
+-- 10. CLIMATIC STRESS GRID DISPATCH & RESERVE MARGIN WINDOW ANALYSIS (ANSWERS BQ8)
+-- Analytical Question: BQ8 - Extreme Climatic Stress vs Regional Grid Dispatch
+-- Fact Table:  fact_regional_grid_demand
+-- Dimensions:  dim_balancing_authority, dim_date
+-- Measures:    demand_mw, demand_forecast_mw, net_gen_gas_mw, net_gen_coal_mw
+-- Business Intent: Analyzes demand forecasting errors and thermal peaker ramp-ups
+--                  during polar vortex freezes and summer heat domes.
+-- ==============================================================================
+SELECT 
+    d.calendar_date,
+    g.hour_of_day,
+    ba.ba_code,
+    ba.ba_name,
+    ba.region AS nerc_region,
+    CASE 
+        WHEN d.is_winter_freeze = TRUE THEN 'WINTER_FREEZE_EVENT'
+        WHEN d.is_summer_peak = TRUE THEN 'SUMMER_PEAK_HEAT_DOME'
+        ELSE 'STANDARD_CLIMATIC_CONDITIONS'
+    END AS climatic_stress_event,
+    g.demand_mw,
+    g.demand_forecast_mw,
+    (g.demand_mw - g.demand_forecast_mw) AS forecast_residual_error_mw,
+    COALESCE(g.net_gen_gas_mw, 0) + COALESCE(g.net_gen_coal_mw, 0) AS thermal_dispatch_mw,
+    COALESCE(g.net_gen_wind_mw, 0) + COALESCE(g.net_gen_solar_mw, 0) AS renewable_dispatch_mw,
+    -- 24-Hour Rolling Average Demand within Balancing Authority
+    ROUND(
+        AVG(g.demand_mw) OVER (
+            PARTITION BY g.ba_key 
+            ORDER BY g.date_key, g.hour_of_day 
+            ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
+        ), 2
+    ) AS rolling_24hr_avg_demand_mw,
+    -- Rank hourly peak stress within each climatic stress event
+    DENSE_RANK() OVER (
+        PARTITION BY g.ba_key, d.is_winter_freeze, d.is_summer_peak 
+        ORDER BY (g.demand_mw - g.demand_forecast_mw) DESC
+    ) AS underforecast_stress_rank
+FROM gold_warehouse.fact_regional_grid_demand g
+JOIN gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
+JOIN gold_warehouse.dim_date d ON g.date_key = d.date_key
+WHERE d.is_winter_freeze = TRUE OR d.is_summer_peak = TRUE
+ORDER BY forecast_residual_error_mw DESC;
+
+
+-- ==============================================================================
+-- 11. BALANCING AUTHORITY PEAK DEMAND SLICING & THERMAL FUEL MIX (ANSWERS BQ9)
+-- Analytical Question: BQ9 - Peak Grid Demand vs Thermal Dispatch by BA
+-- Fact Table:  fact_regional_grid_demand
+-- Dimensions:  dim_balancing_authority, dim_date
+-- Measures:    demand_mw, net_gen_coal_mw, net_gen_gas_mw, peaker_thermal_share_pct
+-- Business Intent: Isolates the top 5% peak load hours per Balancing Authority to
+--                  evaluate thermal peaker dependency and reserve adequacy.
+-- ==============================================================================
+WITH demand_ranked_hours AS (
+    SELECT 
+        g.date_key,
+        g.hour_of_day,
+        ba.ba_code,
+        ba.ba_name,
+        ba.region,
+        g.demand_mw,
+        g.net_gen_coal_mw,
+        g.net_gen_gas_mw,
+        g.net_gen_wind_mw,
+        g.net_gen_solar_mw,
+        PERCENT_RANK() OVER (
+            PARTITION BY g.ba_key 
+            ORDER BY g.demand_mw ASC
+        ) AS demand_percentile
+    FROM gold_warehouse.fact_regional_grid_demand g
+    JOIN gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
+)
+SELECT 
+    ba_code,
+    ba_name,
+    region,
+    COUNT(*) AS top_5_pct_peak_hours_count,
+    ROUND(MIN(demand_mw), 2) AS min_peak_demand_threshold_mw,
+    ROUND(MAX(demand_mw), 2) AS max_historical_peak_demand_mw,
+    ROUND(AVG(net_gen_coal_mw + net_gen_gas_mw), 2) AS avg_peak_thermal_generation_mw,
+    ROUND(AVG(net_gen_wind_mw + net_gen_solar_mw), 2) AS avg_peak_renewable_generation_mw,
+    ROUND(
+        AVG(net_gen_coal_mw + net_gen_gas_mw) / NULLIF(AVG(demand_mw), 0) * 100.0, 2
+    ) AS peaker_thermal_share_pct
+FROM demand_ranked_hours
+WHERE demand_percentile >= 0.95
+GROUP BY ba_code, ba_name, region
+ORDER BY max_historical_peak_demand_mw DESC;
+
 

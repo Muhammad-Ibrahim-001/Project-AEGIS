@@ -113,3 +113,33 @@ SELECT
 FROM gold_warehouse.fact_regional_grid_demand g
 JOIN gold_warehouse.dim_balancing_authority ba ON g.ba_key = ba.ba_key
 JOIN gold_warehouse.dim_date d ON g.date_key = d.date_key;
+
+-- ------------------------------------------------------------------------------
+-- 4. vw_monthly_generation_mix (Monthly Prime Mover & Fuel Generation Trends)
+-- Feeds Power BI Page 2 & Long-Term Fleet Decarbonization Analysis (BQ10)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE VIEW gold_marts.vw_monthly_generation_mix AS
+SELECT 
+    d.calendar_year,
+    d.calendar_month,
+    d.month_name,
+    p.state_code,
+    f.prime_mover_code,
+    f.energy_source_code,
+    SUM(f.net_generation_mwh) AS total_net_generation_mwh,
+    SUM(f.fuel_consumed_mmbtu) AS total_fuel_mmbtu,
+    ROUND(
+        SUM(f.fuel_consumed_mmbtu * 1000.0) / NULLIF(SUM(f.net_generation_mwh), 0), 2
+    ) AS weighted_heat_rate_btu_kwh,
+    COUNT(DISTINCT f.plant_key) AS active_plants_count
+FROM gold_warehouse.fact_monthly_plant_operations f
+JOIN gold_warehouse.dim_plant p ON f.plant_key = p.plant_key
+JOIN gold_warehouse.dim_date d ON f.month_start_date_key = d.date_key
+GROUP BY 
+    d.calendar_year,
+    d.calendar_month,
+    d.month_name,
+    p.state_code,
+    f.prime_mover_code,
+    f.energy_source_code;
+

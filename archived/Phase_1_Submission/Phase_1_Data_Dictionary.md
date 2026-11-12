@@ -360,16 +360,34 @@ Monthly plant fuel use, net generation, heat rate, and an outage indicator. Sour
 | `avg_heat_rate` | NUMERIC | `AVG(f.avg_heat_rate_btu_kwh)` | Calculated thermal efficiency | Heatmap matrix |
 | `operational_state` | VARCHAR | `CASE Net < 0 THEN OUTAGE...` | Station service indicator | Alert badge |
 
-### 6.3 `project_reporting.vw_monthly_generation`
+### 6.3 `gold_marts.vw_grid_stress`
 
-Monthly balancing-authority demand and renewable share. Source: `fact_regional_grid_demand`.
+Hourly balancing-authority demand, day-ahead forecast residuals, renewable share, and grid stress alert levels. Source: `fact_regional_grid_demand`.
 
 | Column | Type | Derived Expression | Description | Target Power BI Visual |
 | :--- | :--- | :--- | :--- | :--- |
-| `ba_code` | VARCHAR(20) | `ba.ba_code` | Balancing authority code | Geographic map / Slicer |
-| `avg_hourly_demand_mw` | NUMERIC | `AVG(g.demand_mw)` | Mean hourly regional load | Area chart |
-| `total_clean_renewable_mwh` | NUMERIC | `SUM(wind_mw + solar_mw)` | Wind + solar clean energy total | Stacked area chart |
-| `renewable_penetration_pct` | NUMERIC | `(Renewables / Demand) * 100` | Clean energy share (%) | Donut chart / Executive KPI |
+| `ba_code` | STRING | `ba.ba_code` | Balancing authority code | Geographic map / Slicer |
+| `demand_mw` | DOUBLE | `g.demand_mw` | Instantaneous hourly electrical demand (MW) | Line / Area chart |
+| `demand_forecast_mw` | DOUBLE | `g.demand_forecast_mw` | Day-ahead forecast demand (MW) | Line chart comparison |
+| `demand_forecast_residual_mw` | DOUBLE | `g.demand_mw - g.demand_forecast_mw` | Hourly forecast error residual | Bar chart (Stress monitor) |
+| `total_renewable_generation_mw`| DOUBLE | `g.net_gen_wind_mw + g.net_gen_solar_mw`| Wind + solar clean energy total | Stacked area chart |
+| `renewable_penetration_pct` | DOUBLE | `(Renewables / Demand) * 100` | Clean energy share (%) | Donut chart / Executive KPI |
+| `net_interchange_mw` | DOUBLE | `g.net_interchange_mw` | Net interchange import/export | KPI card |
+
+### 6.4 `gold_marts.vw_monthly_generation_mix`
+
+Monthly prime mover and energy source generation totals, fuel consumption, and weighted heat rates. Source: `fact_monthly_plant_operations`.
+
+| Column | Type | Derived Expression | Description | Target Power BI Visual |
+| :--- | :--- | :--- | :--- | :--- |
+| `calendar_year` | INT | `d.calendar_year` | Calendar reporting year | Slicer / X-axis |
+| `month_name` | STRING | `d.month_name` | Calendar month name | Trend axis |
+| `state_code` | STRING | `p.state_code` | State two-letter postal code | Map visual |
+| `prime_mover_code` | STRING | `f.prime_mover_code` | Prime mover technology (CC, CT, ST, WT, PV) | Categorical breakdown |
+| `energy_source_code` | STRING | `f.energy_source_code` | Energy source fuel (NG, BIT, WND, SUN) | Color legend |
+| `total_net_generation_mwh` | DOUBLE | `SUM(f.net_generation_mwh)` | Total monthly net generation (MWh) | Stacked bar chart |
+| `weighted_heat_rate_btu_kwh` | DOUBLE | `(SUM(Fuel) * 1000) / SUM(NetGen)`| Weighted thermal heat rate | Scatter / Efficiency matrix |
+
 
 > The dictionary lists the columns used by the dashboard. The view SQL in `05_Analytics/Views.sql` also exposes supporting columns (for example `state_code`, `total_so2_lbs`, `total_nox_lbs`, `peak_hourly_demand_mw`).
 

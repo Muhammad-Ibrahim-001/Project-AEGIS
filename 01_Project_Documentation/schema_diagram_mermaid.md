@@ -186,10 +186,11 @@ flowchart TD
         end
     end
 
-    subgraph S7["7. GOLD LAYER & REPORTING (project_reporting)"]
+    subgraph S7["7. GOLD LAYER & REPORTING (gold_marts)"]
         V1["vw_emissions_intensity<br/>(Hourly Air Quality & CO2/MW)"]
         V2["vw_plant_performance<br/>(Monthly Efficiency & Fuel Costs)"]
-        V3["vw_monthly_generation<br/>(Regional Renewable Penetration %)"]
+        V3["vw_grid_stress<br/>(Regional Grid Demand & Stress Alerts)"]
+        V4["vw_monthly_generation_mix<br/>(Prime Mover Decarbonization Trends)"]
     end
 
     subgraph S8["8. ANALYTICS & BI DASHBOARD"]

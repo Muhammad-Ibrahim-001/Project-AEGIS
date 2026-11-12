@@ -90,15 +90,18 @@ The scenario is an energy analytics group that supports three audiences:
 
 ### 2.2 Analytical Questions
 
-| ID | Business question | Fact table(s) | Reporting view | Dashboard page |
+| ID | Business question | Fact table(s) | Reporting view / Query | Dashboard page |
 | :-: | :--- | :--- | :--- | :-: |
-| BQ1 | Which plants and states emit the most CO2, SO2, and NOx per unit of generation, and how does this change month to month? | Hourly emissions | `vw_emissions_intensity` | 1, 2 |
-| BQ2 | How do ambient temperature and wind relate to plant load and emission intensity? | Hourly emissions | `vw_emissions_intensity` | 2 |
-| BQ3 | Which prime mover and fuel combinations run least efficiently (highest heat rate), and how do delivered fuel costs vary? | Monthly operations | `vw_plant_performance` | 2 |
-| BQ4 | Which plants report negative net generation because station service exceeds output, and how often? | Monthly operations | `vw_plant_performance` | 2 |
-| BQ5 | Which balancing authorities have the highest demand peaks and renewable penetration, and how does the fuel mix change over time? | Grid demand | `vw_monthly_generation` | 1, 3 |
-| BQ6 | Do EPA gross generation and EIA net generation reconcile for each plant? | Hourly emissions, monthly operations | Audit checks | 2 |
-| BQ7 | How do generator operating status and capacity change over time (for example, Operating to Retired)? | `dim_generator` (SCD Type 2) | Generator history query | 2 |
+| BQ1 | Which plants and states emit the most CO2, SO2, and NOx per unit of generation, and how does this change month to month? | Hourly emissions | `vw_emissions_intensity` & OLAP Query 4 | 1, 2 |
+| BQ2 | How do ambient temperature and wind relate to plant load and emission intensity? | Hourly emissions | `vw_emissions_intensity` & OLAP Query 6 | 2 |
+| BQ3 | Which prime mover and fuel combinations run least efficiently (highest heat rate), and how do delivered fuel costs vary? | Monthly operations | `vw_plant_performance` & OLAP Query 1 | 2 |
+| BQ4 | Which plants report negative net generation because station service exceeds output, and how often? | Monthly operations | `vw_plant_performance` & OLAP Query 7 | 2 |
+| BQ5 | Which balancing authorities have the highest demand peaks and renewable penetration, and how does the fuel mix change over time? | Grid demand | `vw_grid_stress` & OLAP Query 2 | 1, 3 |
+| BQ6 | Do EPA gross generation and EIA net generation reconcile for each plant? | Hourly emissions, monthly operations | Audit checks & OLAP Query 8 | 2 |
+| BQ7 | How do generator operating status and capacity change over time (for example, Operating to Retired)? | `dim_generator` (SCD Type 2) | Generator history & OLAP Query 9 | 2 |
+| BQ8 | How do extreme climatic events (deep winter freezes and summer heat waves) trigger grid demand forecast errors, thermal peaking ramp-ups, and regional reserve deficits? | Grid demand, hourly emissions | `vw_grid_stress` & OLAP Query 10 | 3 |
+| BQ9 | During the top 5% peak demand hours within each balancing authority, what proportion of generation is supplied by rapid-start thermal peakers versus baseload and renewables? | Grid demand | `vw_grid_stress` & OLAP Query 11 | 3 |
+| BQ10 | How has the monthly generation mix, total net generation volume, and weighted heat rate transitioned across prime mover technologies over the 2021-2024 compliance period? | Monthly operations | `vw_monthly_generation_mix` & OLAP Query 3 | 2 |
 
 ### 2.3 Success Criteria
 
@@ -281,9 +284,11 @@ Business rules include technology-specific heat rate limits (combined cycle 5,00
 
 | View | Purpose |
 | :--- | :--- |
-| `vw_emissions_intensity` | Daily plant emissions, carbon intensity, and ambient temperature |
-| `vw_plant_performance` | Monthly net generation, fuel use, heat rate, fuel cost, and outage indicator |
-| `vw_monthly_generation` | Monthly balancing-authority demand, generation mix, and renewable penetration |
+| `vw_emissions_intensity` | Daily/hourly plant emissions, carbon intensity, and ambient temperature (Feeds Page 1, 2) |
+| `vw_plant_performance` | Monthly net generation, fuel use, heat rate, fuel cost, and outage indicator (Feeds Page 2) |
+| `vw_grid_stress` | Hourly balancing-authority demand, generation mix, renewable penetration, and stress alerts (Feeds Page 3) |
+| `vw_monthly_generation_mix` | Monthly prime mover and fuel generation mix, weighted heat rate, and decarbonization trends (Feeds Page 2 & BQ10) |
+
 
 ### 7.3 Query Optimization
 
