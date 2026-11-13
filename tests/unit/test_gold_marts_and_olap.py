@@ -99,13 +99,36 @@ class TestGoldReportingMarts(unittest.TestCase):
         self.assertEqual(r["renewable_penetration_pct"], 20.0)
         self.assertEqual(r["grid_stress_alert_level"], "SEVERE_UNDERFORECAST_STRESS")
 
+    def test_vw_monthly_generation_mix(self):
+        fact_monthly = [{
+            "month_start_date_key": 20230101,
+            "plant_key": self.dw.plant_lookup[3],
+            "prime_mover_code": "CC",
+            "energy_source_code": "NG",
+            "net_generation_mwh": 50000.0,
+            "fuel_consumed_mmbtu": 350000.0,
+            "avg_heat_rate_btu_kwh": 7000.0
+        }]
+        view_rows = marts.execute_vw_monthly_generation_mix(fact_monthly, self.dw)
+        self.assertEqual(len(view_rows), 1)
+        r = view_rows[0]
+        self.assertEqual(r["state_code"], "AL")
+        self.assertEqual(r["prime_mover_code"], "CC")
+        self.assertEqual(r["energy_source_code"], "NG")
+        self.assertEqual(r["total_net_generation_mwh"], 50000.0)
+        self.assertEqual(r["total_fuel_mmbtu"], 350000.0)
+        self.assertEqual(r["weighted_heat_rate_btu_kwh"], 7000.0)
+        self.assertEqual(r["active_plants_count"], 1)
+
     def test_run_reporting_marts_suite_offline(self):
         summary = marts.run_reporting_marts_suite(spark_session=None)
         self.assertEqual(summary["execution_status"], "SUCCESS")
-        self.assertEqual(len(summary["views_deployed"]), 3)
+        self.assertEqual(len(summary["views_deployed"]), 4)
+        self.assertIn("dwbi_catalog.gold_marts.vw_monthly_generation_mix", summary["views_deployed"])
         self.assertGreater(summary["vw_emissions_intensity_rows"], 0)
         self.assertGreater(summary["vw_plant_performance_rows"], 0)
         self.assertGreater(summary["vw_grid_stress_rows"], 0)
+        self.assertGreater(summary["vw_monthly_generation_mix_rows"], 0)
 
 
 if __name__ == "__main__":
