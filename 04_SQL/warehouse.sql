@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS gold_warehouse.dim_balancing_authority (
     ba_code              STRING NOT NULL,                         -- Natural Business Key
     ba_name              STRING NOT NULL,
     region               STRING,
-    is_active            BOOLEAN DEFAULT TRUE,
+    is_active            BOOLEAN,
     CONSTRAINT pk_dim_ba PRIMARY KEY (ba_key)
 ) USING DELTA;
 
@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS gold_warehouse.dim_plant (
     county_name          STRING,
     ba_code              STRING,
     epa_region           INT,
-    is_combined_heat_power BOOLEAN DEFAULT FALSE,
-    created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    is_combined_heat_power BOOLEAN,
+    created_at           TIMESTAMP,
     CONSTRAINT pk_dim_plant PRIMARY KEY (plant_key)
 ) USING DELTA;
 
@@ -71,8 +71,8 @@ CREATE TABLE IF NOT EXISTS gold_warehouse.dim_generator (
     nameplate_capacity_mw DECIMAL(10, 2),
     operating_status     STRING NOT NULL, -- OP (Operating), SB (Standby), RE (Retired)
     valid_from           TIMESTAMP NOT NULL,
-    valid_to             TIMESTAMP DEFAULT TIMESTAMP('9999-12-31 23:59:59'),
-    is_current           BOOLEAN NOT NULL DEFAULT TRUE,
+    valid_to             TIMESTAMP,
+    is_current           BOOLEAN NOT NULL,
     CONSTRAINT pk_dim_generator PRIMARY KEY (generator_key)
 ) USING DELTA;
 

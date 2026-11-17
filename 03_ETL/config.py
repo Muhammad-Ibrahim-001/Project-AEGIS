@@ -423,7 +423,7 @@ def init_databricks_environment(spark_session=None):
                 ba_code              STRING NOT NULL,
                 ba_name              STRING NOT NULL,
                 region               STRING,
-                is_active            BOOLEAN DEFAULT TRUE,
+                is_active            BOOLEAN,
                 CONSTRAINT pk_dim_ba PRIMARY KEY (ba_key)
             ) USING DELTA
         """)
@@ -442,8 +442,8 @@ def init_databricks_environment(spark_session=None):
                 county_name          STRING,
                 ba_code              STRING,
                 epa_region           INT,
-                is_combined_heat_power BOOLEAN DEFAULT FALSE,
-                created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+                is_combined_heat_power BOOLEAN,
+                created_at           TIMESTAMP,
                 CONSTRAINT pk_dim_plant PRIMARY KEY (plant_key)
             ) USING DELTA
         """)
@@ -461,8 +461,8 @@ def init_databricks_environment(spark_session=None):
                 operating_year       INT,
                 planned_retirement_year INT,
                 valid_from           TIMESTAMP NOT NULL,
-                valid_to             TIMESTAMP DEFAULT TIMESTAMP('9999-12-31 23:59:59'),
-                is_current           BOOLEAN NOT NULL DEFAULT TRUE,
+                valid_to             TIMESTAMP,
+                is_current           BOOLEAN NOT NULL,
                 CONSTRAINT pk_dim_generator PRIMARY KEY (generator_key)
             ) USING DELTA
         """)
