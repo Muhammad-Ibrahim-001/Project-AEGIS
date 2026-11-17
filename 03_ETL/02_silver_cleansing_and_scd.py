@@ -31,8 +31,12 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 
 # Add 03_ETL to path for config module discovery
 MODULE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = MODULE_DIR.parent if MODULE_DIR.name == "03_ETL" else MODULE_DIR
+
 if str(MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(MODULE_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
     import config

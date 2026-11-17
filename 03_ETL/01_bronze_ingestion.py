@@ -27,12 +27,45 @@ import uuid
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 
 # Add 03_ETL to path for config module discovery
 MODULE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = MODULE_DIR.parent if MODULE_DIR.name == "03_ETL" else MODULE_DIR
+
 if str(MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(MODULE_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+def resolve_repo_path(file_path: Union[str, Path]) -> str:
+    """
+    Robustly resolves relative repository paths across Databricks Repos/Git Folders,
+    local execution, and arbitrary working directories.
+    """
+    if not file_path:
+        return ""
+    p = Path(file_path)
+    if p.is_absolute() and p.exists():
+        return str(p)
+    if p.exists():
+        return str(p)
+    # Check relative to PROJECT_ROOT (parent of 03_ETL)
+    cand = (PROJECT_ROOT / p).resolve()
+    if cand.exists():
+        return str(cand)
+    # Check relative to MODULE_DIR (03_ETL)
+    cand = (MODULE_DIR / p).resolve()
+    if cand.exists():
+        return str(cand)
+    # Check parent of current working directory
+    try:
+        cand = (Path.cwd().parent / p).resolve()
+        if cand.exists():
+            return str(cand)
+    except Exception:
+        pass
+    return str(file_path)
 
 try:
     import config
@@ -84,8 +117,9 @@ def find_header_row_csv(
     scan_keys_lower = [k.strip().lower() for k in scan_keys]
 
     # Normalize input lines
-    if isinstance(lines_or_path, (str, Path)) and os.path.exists(str(lines_or_path)):
-        with open(str(lines_or_path), "r", encoding="utf-8-sig", errors="ignore") as f:
+    resolved_path = resolve_repo_path(lines_or_path) if isinstance(lines_or_path, (str, Path)) else None
+    if resolved_path and os.path.exists(resolved_path):
+        with open(resolved_path, "r", encoding="utf-8-sig", errors="ignore") as f:
             reader = list(csv.reader(f))
     elif isinstance(lines_or_path, list):
         if len(lines_or_path) > 0 and isinstance(lines_or_path[0], list):
@@ -169,7 +203,7 @@ def log_etl_run(
 # ==============================================================================
 
 def extract_csv_records(
-    file_path: str,
+    file_path: Union[str, Path],
     scan_keys: Optional[List[str]] = None,
     batch_id: Optional[str] = None
 ) -> Tuple[List[str], List[Dict[str, Any]]]:
@@ -179,9 +213,10 @@ def extract_csv_records(
     """
     batch_id = batch_id or generate_batch_id()
     now_iso = datetime.now(timezone.utc).isoformat()
-    source_filename = os.path.basename(file_path)
+    resolved_path = resolve_repo_path(file_path)
+    source_filename = os.path.basename(resolved_path)
 
-    with open(file_path, "r", encoding="utf-8-sig", errors="ignore") as f:
+    with open(resolved_path, "r", encoding="utf-8-sig", errors="ignore") as f:
         raw_rows = list(csv.reader(f))
 
     if not raw_rows:
@@ -208,7 +243,7 @@ def extract_csv_records(
 
 
 def extract_json_records(
-    file_path: str,
+    file_path: Union[str, Path],
     batch_id: Optional[str] = None
 ) -> Tuple[List[str], List[Dict[str, Any]]]:
     """
@@ -217,9 +252,10 @@ def extract_json_records(
     """
     batch_id = batch_id or generate_batch_id()
     now_iso = datetime.now(timezone.utc).isoformat()
-    source_filename = os.path.basename(file_path)
+    resolved_path = resolve_repo_path(file_path)
+    source_filename = os.path.basename(resolved_path)
 
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+    with open(resolved_path, "r", encoding="utf-8", errors="ignore") as f:
         data = json.load(f)
 
     if not isinstance(data, list):
