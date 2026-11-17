@@ -85,15 +85,7 @@ def record_dq_result(
     except Exception as e:
         pass  # Gracefully fall back to in-memory log
 
-    # Write to Spark Delta table if Spark is active
-    if spark_session is not None:
-        try:
-            target_table = config.get_table_fqn("QUARANTINE", "dq_check_results")
-            df = spark_session.createDataFrame([entry])
-            df.write.format("delta").mode("append").saveAsTable(target_table)
-        except Exception as e:
-            print(f"[WARN] Spark DQ log note: {e}")
-
+    # Individual result buffered in DQ_CHECK_RESULTS_LOG; batch written to Delta at suite completion
     return entry
 
 
@@ -711,9 +703,48 @@ def run_data_quality_suite(
         "overall_status": "FAIL" if fail_count > 0 else ("WARN" if warn_count > 0 else "PASS")
     }
 
+    # Batch write all DQ results to Delta table in Databricks
+    if spark_session is not None and all_results:
+        try:
+            target_table = config.get_table_fqn("QUARANTINE", "dq_check_results")
+            df = spark_session.createDataFrame(all_results)
+            df.write.format("delta").mode("append").saveAsTable(target_table)
+            print(f"   ✓ Batch DQ Results ({len(all_results)} checks) saved to {target_table}")
+        except Exception as e:
+            print(f"[WARN] Failed to write batch DQ results to Spark: {e}")
+
     print("====================================================================")
     print(f"DATA QUALITY SUITE COMPLETE: {total_checks} Checks | {pass_count} PASS | {warn_count} WARN | {fail_count} FAIL")
     print(f"Overall Lakehouse Health Status: {summary['overall_status']}")
     print("====================================================================")
 
     return all_results, summary
+
+
+def run_standalone_data_quality_validation(spark_session=None):
+    """Executes the complete Data Quality validation suite standalone against the Gold warehouse."""
+    import importlib
+    silver = importlib.import_module("02_silver_cleansing_and_scd")
+    gold = importlib.import_module("03_gold_star_schema_facts")
+
+    # Run / retrieve pipeline structures
+    s_summary = silver.run_silver_conformance_suite(spark_session=spark_session)
+    g_summary = gold.run_gold_warehouse_pipeline(spark_session=spark_session, silver_data=s_summary.get("silver_data"))
+    
+    dw = g_summary.get("dw")
+    if dw:
+        return run_data_quality_suite(
+            dw=dw,
+            silver_data=s_summary.get("silver_data"),
+            cleaning_log=silver.CLEANING_STEP_LOG,
+            batch_id=g_summary.get("master_batch_id"),
+            spark_session=spark_session
+        )
+
+
+# Databricks execution trigger
+try:
+    if "spark" in locals() or "spark" in globals():
+        run_standalone_data_quality_validation(spark)
+except NameError:
+    pass

@@ -1092,6 +1092,47 @@ def run_silver_conformance_suite(
     total_raw_read = (len(raw_plants) + len(raw_gen) + len(raw_gen923) + 
                       len(raw_weather) + len(raw_cems) + len(raw_grid))
 
+    # Persist Conformed Silver Tables to Delta Lake in Databricks
+    if spark_session is not None:
+        try:
+            if silver_plants:
+                t_plants = config.get_table_fqn("SILVER", "silver_plants_master")
+                spark_session.createDataFrame(silver_plants).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_plants)
+                print(f"   ✓ Delta Table Saved: {t_plants}")
+
+            if silver_generators:
+                t_gen = config.get_table_fqn("SILVER", "silver_generators_scd2")
+                spark_session.createDataFrame(silver_generators).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_gen)
+                print(f"   ✓ Delta Table Saved: {t_gen}")
+
+            if silver_923:
+                t_923 = config.get_table_fqn("SILVER", "silver_monthly_generation")
+                spark_session.createDataFrame(silver_923).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_923)
+                print(f"   ✓ Delta Table Saved: {t_923}")
+
+            if silver_weather:
+                t_weather = config.get_table_fqn("SILVER", "silver_weather_hourly")
+                spark_session.createDataFrame(silver_weather).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_weather)
+                print(f"   ✓ Delta Table Saved: {t_weather}")
+
+            if silver_emissions:
+                t_cems = config.get_table_fqn("SILVER", "silver_emissions_cems")
+                spark_session.createDataFrame(silver_emissions).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_cems)
+                print(f"   ✓ Delta Table Saved: {t_cems}")
+
+            if silver_grid:
+                t_grid = config.get_table_fqn("SILVER", "silver_grid_hourly")
+                spark_session.createDataFrame(silver_grid).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_grid)
+                print(f"   ✓ Delta Table Saved: {t_grid}")
+
+            all_quarantined = q_plants + q_gen + q_923 + q_weather + q_emissions + q_grid
+            if all_quarantined:
+                t_quarantine = config.get_table_fqn("QUARANTINE", "rejected_records")
+                spark_session.createDataFrame(all_quarantined).write.format("delta").mode("append").saveAsTable(t_quarantine)
+                print(f"   ✓ Quarantined Records Batch Saved: {t_quarantine} ({len(all_quarantined)} records)")
+        except Exception as e:
+            print(f"[WARN] Failed to write silver tables to Delta: {e}")
+
     # 8. Log Silver pipeline execution to etl_run_log
     bronze.log_etl_run(
         spark_session=spark_session,

@@ -1157,3 +1157,10 @@ def generate_all_reports() -> Dict[str, Path]:
 if __name__ == "__main__":
     generate_all_reports()
 
+# Databricks execution trigger
+try:
+    if "spark" in locals() or "spark" in globals():
+        generate_all_reports()
+except Exception as e:
+    print(f"[NOTE] PDF Report generation in Databricks requires reportlab (%pip install reportlab): {e}")
+

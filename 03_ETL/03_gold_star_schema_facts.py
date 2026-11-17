@@ -710,22 +710,50 @@ def run_gold_warehouse_pipeline(
     # 4. Write Delta Tables with Liquid Clustering (when SparkSession is active)
     if spark_session is not None:
         try:
-            # Fact 1
+            # 5 Conformed Dimensions (overwrite so re-running is idempotent)
+            d_date = config.get_table_fqn("GOLD_DW", "dim_date")
+            spark_session.createDataFrame(dw.dim_date).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_date)
+            print(f"   ✓ Spark Delta Dimension Saved: {d_date}")
+
+            d_plant = config.get_table_fqn("GOLD_DW", "dim_plant")
+            spark_session.createDataFrame(dw.dim_plant).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_plant)
+            print(f"   ✓ Spark Delta Dimension Saved: {d_plant}")
+
+            d_gen = config.get_table_fqn("GOLD_DW", "dim_generator")
+            spark_session.createDataFrame(dw.dim_generator).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_gen)
+            print(f"   ✓ Spark Delta Dimension Saved: {d_gen}")
+
+            d_ba = config.get_table_fqn("GOLD_DW", "dim_balancing_authority")
+            spark_session.createDataFrame(dw.dim_balancing_authority).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_ba)
+            print(f"   ✓ Spark Delta Dimension Saved: {d_ba}")
+
+            d_station = config.get_table_fqn("GOLD_DW", "dim_weather_station")
+            spark_session.createDataFrame(dw.dim_weather_station).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_station)
+            print(f"   ✓ Spark Delta Dimension Saved: {d_station}")
+
+            # 3 Multi-Grain Facts with Liquid Clustering
             f1_table = config.get_table_fqn("GOLD_DW", "fact_hourly_emissions_weather")
             df_f1 = spark_session.createDataFrame(fact_hourly)
-            df_f1.write.format("delta").mode("append").clusterBy("date_key", "plant_key").saveAsTable(f1_table)
+            try:
+                df_f1.write.format("delta").mode("overwrite").option("overwriteSchema", "true").clusterBy("date_key", "plant_key").saveAsTable(f1_table)
+            except Exception:
+                df_f1.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(f1_table)
             print(f"   ✓ Spark Delta Table Saved: {f1_table}")
 
-            # Fact 2
             f2_table = config.get_table_fqn("GOLD_DW", "fact_monthly_plant_operations")
             df_f2 = spark_session.createDataFrame(fact_monthly)
-            df_f2.write.format("delta").mode("append").clusterBy("month_start_date_key", "plant_key").saveAsTable(f2_table)
+            try:
+                df_f2.write.format("delta").mode("overwrite").option("overwriteSchema", "true").clusterBy("month_start_date_key", "plant_key").saveAsTable(f2_table)
+            except Exception:
+                df_f2.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(f2_table)
             print(f"   ✓ Spark Delta Table Saved: {f2_table}")
 
-            # Fact 3
             f3_table = config.get_table_fqn("GOLD_DW", "fact_regional_grid_demand")
             df_f3 = spark_session.createDataFrame(fact_grid)
-            df_f3.write.format("delta").mode("append").clusterBy("date_key", "ba_key").saveAsTable(f3_table)
+            try:
+                df_f3.write.format("delta").mode("overwrite").option("overwriteSchema", "true").clusterBy("date_key", "ba_key").saveAsTable(f3_table)
+            except Exception:
+                df_f3.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(f3_table)
             print(f"   ✓ Spark Delta Table Saved: {f3_table}")
         except Exception as e:
             print(f"[WARN] Spark Delta writing note: {e}")

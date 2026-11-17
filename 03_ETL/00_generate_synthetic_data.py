@@ -708,3 +708,10 @@ def generate_synthetic_bronze_datasets(
 if __name__ == "__main__":
     generate_synthetic_bronze_datasets()
 
+# Databricks execution trigger
+try:
+    if "spark" in locals() or "spark" in globals():
+        generate_synthetic_bronze_datasets()
+except NameError:
+    pass
+
