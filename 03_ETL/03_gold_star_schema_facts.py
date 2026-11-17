@@ -710,30 +710,147 @@ def run_gold_warehouse_pipeline(
     # 4. Write Delta Tables with Liquid Clustering (when SparkSession is active)
     if spark_session is not None:
         try:
+            from pyspark.sql.types import (
+                StructType, StructField, StringType, IntegerType, LongType, DoubleType, BooleanType
+            )
+
+            schema_dim_date = StructType([
+                StructField("date_key", IntegerType(), False),
+                StructField("calendar_date", StringType(), False),
+                StructField("calendar_year", IntegerType(), False),
+                StructField("calendar_quarter", IntegerType(), False),
+                StructField("calendar_month", IntegerType(), False),
+                StructField("month_name", StringType(), False),
+                StructField("day_of_month", IntegerType(), False),
+                StructField("day_of_week", IntegerType(), False),
+                StructField("day_name", StringType(), False),
+                StructField("is_weekend", BooleanType(), False),
+                StructField("season_name", StringType(), True),
+                StructField("is_summer_peak", BooleanType(), True),
+                StructField("is_winter_freeze", BooleanType(), True),
+            ])
+
+            schema_dim_plant = StructType([
+                StructField("plant_key", LongType(), True),
+                StructField("orispl_code", IntegerType(), True),
+                StructField("plant_name", StringType(), True),
+                StructField("utility_id", IntegerType(), True),
+                StructField("utility_name", StringType(), True),
+                StructField("latitude", DoubleType(), True),
+                StructField("longitude", DoubleType(), True),
+                StructField("state_code", StringType(), True),
+                StructField("county_name", StringType(), True),
+                StructField("ba_code", StringType(), True),
+                StructField("epa_region", IntegerType(), True),
+                StructField("is_combined_heat_power", BooleanType(), True),
+                StructField("created_at", StringType(), True),
+            ])
+
+            schema_dim_gen = StructType([
+                StructField("generator_key", LongType(), True),
+                StructField("orispl_code", IntegerType(), True),
+                StructField("generator_id", StringType(), True),
+                StructField("prime_mover_code", StringType(), True),
+                StructField("primary_energy_source", StringType(), True),
+                StructField("nameplate_capacity_mw", DoubleType(), True),
+                StructField("operating_status", StringType(), True),
+                StructField("valid_from", StringType(), True),
+                StructField("valid_to", StringType(), True),
+                StructField("is_current", BooleanType(), True),
+            ])
+
+            schema_dim_ba = StructType([
+                StructField("ba_key", LongType(), True),
+                StructField("ba_code", StringType(), True),
+                StructField("ba_name", StringType(), True),
+                StructField("region", StringType(), True),
+                StructField("is_active", BooleanType(), True),
+            ])
+
+            schema_dim_station = StructType([
+                StructField("station_key", LongType(), True),
+                StructField("station_id", StringType(), True),
+                StructField("station_name", StringType(), True),
+                StructField("state_code", StringType(), True),
+                StructField("latitude", DoubleType(), True),
+                StructField("longitude", DoubleType(), True),
+                StructField("elevation_m", DoubleType(), True),
+            ])
+
+            schema_f1 = StructType([
+                StructField("date_key", IntegerType(), True),
+                StructField("hour_of_day", IntegerType(), True),
+                StructField("plant_key", LongType(), True),
+                StructField("unit_id", StringType(), True),
+                StructField("station_key", LongType(), True),
+                StructField("gross_load_mw", DoubleType(), True),
+                StructField("heat_input_mmbtu", DoubleType(), True),
+                StructField("so2_mass_lbs", DoubleType(), True),
+                StructField("nox_mass_lbs", DoubleType(), True),
+                StructField("co2_mass_tons", DoubleType(), True),
+                StructField("air_temperature_c", DoubleType(), True),
+                StructField("wind_speed_mps", DoubleType(), True),
+                StructField("spatial_distance_km", DoubleType(), True),
+                StructField("temporal_diff_minutes", IntegerType(), True),
+                StructField("_batch_id", StringType(), True),
+            ])
+
+            schema_f2 = StructType([
+                StructField("month_start_date_key", IntegerType(), True),
+                StructField("plant_key", LongType(), True),
+                StructField("prime_mover_code", StringType(), True),
+                StructField("energy_source_code", StringType(), True),
+                StructField("year", IntegerType(), True),
+                StructField("net_generation_mwh", DoubleType(), True),
+                StructField("fuel_consumed_mmbtu", DoubleType(), True),
+                StructField("avg_heat_rate_btu_kwh", DoubleType(), True),
+                StructField("heat_rate_validation_code", StringType(), True),
+                StructField("_batch_id", StringType(), True),
+            ])
+
+            schema_f3 = StructType([
+                StructField("date_key", IntegerType(), True),
+                StructField("hour_of_day", IntegerType(), True),
+                StructField("ba_key", LongType(), True),
+                StructField("demand_mw", DoubleType(), True),
+                StructField("demand_forecast_mw", DoubleType(), True),
+                StructField("gen_coal_mw", DoubleType(), True),
+                StructField("gen_natgas_mw", DoubleType(), True),
+                StructField("gen_nuclear_mw", DoubleType(), True),
+                StructField("gen_hydro_mw", DoubleType(), True),
+                StructField("gen_wind_mw", DoubleType(), True),
+                StructField("gen_solar_mw", DoubleType(), True),
+                StructField("net_interchange_mw", DoubleType(), True),
+                StructField("forecast_bias_mw", DoubleType(), True),
+                StructField("wind_solar_penetration_pct", DoubleType(), True),
+                StructField("is_peak_demand_hour", BooleanType(), True),
+                StructField("_batch_id", StringType(), True),
+            ])
+
             # 5 Conformed Dimensions (overwrite so re-running is idempotent)
             d_date = config.get_table_fqn("GOLD_DW", "dim_date")
-            spark_session.createDataFrame(dw.dim_date).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_date)
+            spark_session.createDataFrame(dw.dim_date, schema=schema_dim_date).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_date)
             print(f"   ✓ Spark Delta Dimension Saved: {d_date}")
 
             d_plant = config.get_table_fqn("GOLD_DW", "dim_plant")
-            spark_session.createDataFrame(dw.dim_plant).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_plant)
+            spark_session.createDataFrame(dw.dim_plant, schema=schema_dim_plant).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_plant)
             print(f"   ✓ Spark Delta Dimension Saved: {d_plant}")
 
             d_gen = config.get_table_fqn("GOLD_DW", "dim_generator")
-            spark_session.createDataFrame(dw.dim_generator).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_gen)
+            spark_session.createDataFrame(dw.dim_generator, schema=schema_dim_gen).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_gen)
             print(f"   ✓ Spark Delta Dimension Saved: {d_gen}")
 
             d_ba = config.get_table_fqn("GOLD_DW", "dim_balancing_authority")
-            spark_session.createDataFrame(dw.dim_balancing_authority).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_ba)
+            spark_session.createDataFrame(dw.dim_balancing_authority, schema=schema_dim_ba).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_ba)
             print(f"   ✓ Spark Delta Dimension Saved: {d_ba}")
 
             d_station = config.get_table_fqn("GOLD_DW", "dim_weather_station")
-            spark_session.createDataFrame(dw.dim_weather_station).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_station)
+            spark_session.createDataFrame(dw.dim_weather_station, schema=schema_dim_station).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(d_station)
             print(f"   ✓ Spark Delta Dimension Saved: {d_station}")
 
             # 3 Multi-Grain Facts with Liquid Clustering
             f1_table = config.get_table_fqn("GOLD_DW", "fact_hourly_emissions_weather")
-            df_f1 = spark_session.createDataFrame(fact_hourly)
+            df_f1 = spark_session.createDataFrame(fact_hourly, schema=schema_f1)
             try:
                 df_f1.write.format("delta").mode("overwrite").option("overwriteSchema", "true").clusterBy("date_key", "plant_key").saveAsTable(f1_table)
             except Exception:
@@ -741,7 +858,7 @@ def run_gold_warehouse_pipeline(
             print(f"   ✓ Spark Delta Table Saved: {f1_table}")
 
             f2_table = config.get_table_fqn("GOLD_DW", "fact_monthly_plant_operations")
-            df_f2 = spark_session.createDataFrame(fact_monthly)
+            df_f2 = spark_session.createDataFrame(fact_monthly, schema=schema_f2)
             try:
                 df_f2.write.format("delta").mode("overwrite").option("overwriteSchema", "true").clusterBy("month_start_date_key", "plant_key").saveAsTable(f2_table)
             except Exception:
@@ -749,7 +866,7 @@ def run_gold_warehouse_pipeline(
             print(f"   ✓ Spark Delta Table Saved: {f2_table}")
 
             f3_table = config.get_table_fqn("GOLD_DW", "fact_regional_grid_demand")
-            df_f3 = spark_session.createDataFrame(fact_grid)
+            df_f3 = spark_session.createDataFrame(fact_grid, schema=schema_f3)
             try:
                 df_f3.write.format("delta").mode("overwrite").option("overwriteSchema", "true").clusterBy("date_key", "ba_key").saveAsTable(f3_table)
             except Exception:

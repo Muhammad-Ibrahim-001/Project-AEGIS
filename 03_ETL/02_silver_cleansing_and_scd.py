@@ -191,7 +191,16 @@ def record_cleaning_step(
         try:
             from pyspark.sql import Row
             log_table = config.get_table_fqn("SILVER", "cleaning_step_log")
-            df_log = spark_session.createDataFrame([Row(**entry)])
+            dbx_row = {
+                "step_name": str(step_name),
+                "table_name": str(target_table),
+                "rows_in": int(rows_in),
+                "rows_changed": int(rows_changed),
+                "rows_removed": int(rows_removed),
+                "rows_quarantined": int(rows_quarantined),
+                "logged_at": datetime.now(timezone.utc)
+            }
+            df_log = spark_session.createDataFrame([Row(**dbx_row)])
             df_log.write.format("delta").mode("append").saveAsTable(log_table)
         except Exception as e:
             print(f"[WARN] Failed to write cleaning step log to Spark Delta table: {e}")
@@ -280,16 +289,6 @@ def quarantine_record(
         "rejected_at": datetime.now(timezone.utc).isoformat()
     }
     QUARANTINE_HISTORY.append(record)
-
-    if spark_session is not None:
-        try:
-            from pyspark.sql import Row
-            quarantine_table = config.get_table_fqn("QUARANTINE", "rejected_records")
-            df_q = spark_session.createDataFrame([Row(**record)])
-            df_q.write.format("delta").mode("append").saveAsTable(quarantine_table)
-        except Exception as e:
-            print(f"[WARN] Failed to write record to Spark quarantine table: {e}")
-
     return record
 
 
@@ -1004,7 +1003,7 @@ def run_silver_conformance_suite(
     print(f"STARTING MASTER SILVER CONFORMANCE PIPELINE [Batch: {master_batch_id}]")
     print("====================================================================")
 
-    # 1. Ingest Bronze baseline (use supplied raw inputs or read from sample files)
+    # 1. Ingest Bronze baseline (use supplied raw inputs, read from Bronze Delta tables, or read from sample files)
     raw_weather_stations = None
     if raw_inputs:
         raw_gen = raw_inputs.get("raw_generators", [])
@@ -1014,7 +1013,35 @@ def run_silver_conformance_suite(
         raw_cems = raw_inputs.get("raw_cems_hourly", [])
         raw_grid = raw_inputs.get("raw_grid_hourly", [])
         raw_weather_stations = raw_inputs.get("raw_weather_stations")
+    elif spark_session is not None:
+        try:
+            print("-> Reading raw records from Bronze Delta staging tables...")
+            t_gen = config.get_table_fqn("BRONZE", "raw_eia860_generator")
+            t_plants = config.get_table_fqn("BRONZE", "raw_eia860_plant")
+            t_gen923 = config.get_table_fqn("BRONZE", "raw_eia923_monthly_generation")
+            t_weather = config.get_table_fqn("BRONZE", "raw_noaa_isd_weather")
+            t_cems = config.get_table_fqn("BRONZE", "raw_epa_hourly_emissions")
+            t_grid = config.get_table_fqn("BRONZE", "raw_eia930_hourly_grid")
+            t_stations = config.get_table_fqn("BRONZE", "raw_noaa_isd_station_history")
+
+            raw_gen = [r.asDict() for r in spark_session.read.table(t_gen).collect()]
+            raw_plants = [r.asDict() for r in spark_session.read.table(t_plants).collect()]
+            raw_gen923 = [r.asDict() for r in spark_session.read.table(t_gen923).collect()]
+            raw_weather = [r.asDict() for r in spark_session.read.table(t_weather).collect()]
+            raw_cems = [r.asDict() for r in spark_session.read.table(t_cems).collect()]
+            raw_grid = [r.asDict() for r in spark_session.read.table(t_grid).collect()]
+            try:
+                raw_weather_stations = [r.asDict() for r in spark_session.read.table(t_stations).collect()]
+            except Exception:
+                raw_weather_stations = None
+            print(f"   ✓ Read from Bronze Delta: {len(raw_plants)} plants, {len(raw_gen)} generators, {len(raw_gen923)} monthly gen, {len(raw_weather)} weather, {len(raw_cems)} emissions, {len(raw_grid)} grid.")
+        except Exception as e:
+            print(f"! Notice: Could not read from Bronze Delta ({e}). Falling back to sample files.")
+            raw_gen = None
     else:
+        raw_gen = None
+
+    if raw_gen is None and not raw_inputs:
         raw_eia860_gen_headers, raw_gen = bronze.extract_csv_records(
             "archived/scratch_api_tests/sample_data/sample_eia860_generator.csv",
             scan_keys=["Plant Code"],
@@ -1095,40 +1122,151 @@ def run_silver_conformance_suite(
     # Persist Conformed Silver Tables to Delta Lake in Databricks
     if spark_session is not None:
         try:
+            from pyspark.sql.types import (
+                StructType, StructField, StringType, IntegerType, DoubleType, BooleanType, TimestampType
+            )
+
+            schema_plants = StructType([
+                StructField("orispl_code", IntegerType(), True),
+                StructField("plant_name", StringType(), True),
+                StructField("utility_id", IntegerType(), True),
+                StructField("utility_name", StringType(), True),
+                StructField("state_code", StringType(), True),
+                StructField("county_name", StringType(), True),
+                StructField("latitude", DoubleType(), True),
+                StructField("longitude", DoubleType(), True),
+                StructField("ba_code", StringType(), True),
+                StructField("is_combined_heat_power", BooleanType(), True),
+                StructField("_batch_id", StringType(), True),
+                StructField("_conformed_at", StringType(), True),
+            ])
+
+            schema_gen = StructType([
+                StructField("orispl_code", IntegerType(), True),
+                StructField("generator_id", StringType(), True),
+                StructField("prime_mover_code", StringType(), True),
+                StructField("primary_energy_source", StringType(), True),
+                StructField("nameplate_capacity_mw", DoubleType(), True),
+                StructField("operating_status", StringType(), True),
+                StructField("operating_year", IntegerType(), True),
+                StructField("planned_retirement_year", IntegerType(), True),
+                StructField("valid_from", StringType(), True),
+                StructField("valid_to", StringType(), True),
+                StructField("is_current", BooleanType(), True),
+                StructField("_batch_id", StringType(), True),
+            ])
+
+            schema_923 = StructType([
+                StructField("orispl_code", IntegerType(), True),
+                StructField("plant_name", StringType(), True),
+                StructField("prime_mover_code", StringType(), True),
+                StructField("energy_source_code", StringType(), True),
+                StructField("year", IntegerType(), True),
+                StructField("month_start_date_key", IntegerType(), True),
+                StructField("net_generation_mwh", DoubleType(), True),
+                StructField("fuel_consumed_mmbtu", DoubleType(), True),
+                StructField("avg_heat_rate_btu_kwh", DoubleType(), True),
+                StructField("heat_rate_validation_code", StringType(), True),
+                StructField("_batch_id", StringType(), True),
+                StructField("_conformed_at", StringType(), True),
+            ])
+
+            schema_weather = StructType([
+                StructField("station_id", StringType(), True),
+                StructField("timestamp_utc", StringType(), True),
+                StructField("air_temperature_c", DoubleType(), True),
+                StructField("wind_speed_mps", DoubleType(), True),
+                StructField("_batch_id", StringType(), True),
+                StructField("_conformed_at", StringType(), True),
+            ])
+
+            schema_emissions = StructType([
+                StructField("orispl_code", IntegerType(), True),
+                StructField("unit_id", StringType(), True),
+                StructField("date_key", IntegerType(), True),
+                StructField("hour_of_day", IntegerType(), True),
+                StructField("gross_load_mw", DoubleType(), True),
+                StructField("heat_input_mmbtu", DoubleType(), True),
+                StructField("so2_mass_lbs", DoubleType(), True),
+                StructField("nox_mass_lbs", DoubleType(), True),
+                StructField("co2_mass_tons", DoubleType(), True),
+                StructField("_batch_id", StringType(), True),
+                StructField("_conformed_at", StringType(), True),
+            ])
+
+            schema_grid = StructType([
+                StructField("ba_code", StringType(), True),
+                StructField("ba_name", StringType(), True),
+                StructField("interconnect", StringType(), True),
+                StructField("timestamp_utc", StringType(), True),
+                StructField("date_key", IntegerType(), True),
+                StructField("hour_of_day", IntegerType(), True),
+                StructField("demand_mw", DoubleType(), True),
+                StructField("demand_forecast_mw", DoubleType(), True),
+                StructField("gen_coal_mw", DoubleType(), True),
+                StructField("gen_natgas_mw", DoubleType(), True),
+                StructField("gen_nuclear_mw", DoubleType(), True),
+                StructField("gen_hydro_mw", DoubleType(), True),
+                StructField("gen_wind_mw", DoubleType(), True),
+                StructField("gen_solar_mw", DoubleType(), True),
+                StructField("net_interchange_mw", DoubleType(), True),
+                StructField("_batch_id", StringType(), True),
+                StructField("_conformed_at", StringType(), True),
+            ])
+
+            schema_quarantine = StructType([
+                StructField("batch_id", StringType(), True),
+                StructField("source_system", StringType(), True),
+                StructField("source_table", StringType(), True),
+                StructField("source_row_identifier", StringType(), True),
+                StructField("rejection_reason", StringType(), True),
+                StructField("raw_payload_json", StringType(), True),
+                StructField("rejected_at", TimestampType(), True),
+            ])
+
             if silver_plants:
                 t_plants = config.get_table_fqn("SILVER", "silver_plants_master")
-                spark_session.createDataFrame(silver_plants).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_plants)
+                spark_session.createDataFrame(silver_plants, schema=schema_plants).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_plants)
                 print(f"   ✓ Delta Table Saved: {t_plants}")
 
             if silver_generators:
                 t_gen = config.get_table_fqn("SILVER", "silver_generators_scd2")
-                spark_session.createDataFrame(silver_generators).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_gen)
+                spark_session.createDataFrame(silver_generators, schema=schema_gen).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_gen)
                 print(f"   ✓ Delta Table Saved: {t_gen}")
 
             if silver_923:
                 t_923 = config.get_table_fqn("SILVER", "silver_monthly_generation")
-                spark_session.createDataFrame(silver_923).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_923)
+                spark_session.createDataFrame(silver_923, schema=schema_923).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_923)
                 print(f"   ✓ Delta Table Saved: {t_923}")
 
             if silver_weather:
                 t_weather = config.get_table_fqn("SILVER", "silver_weather_hourly")
-                spark_session.createDataFrame(silver_weather).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_weather)
+                spark_session.createDataFrame(silver_weather, schema=schema_weather).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_weather)
                 print(f"   ✓ Delta Table Saved: {t_weather}")
 
             if silver_emissions:
                 t_cems = config.get_table_fqn("SILVER", "silver_emissions_cems")
-                spark_session.createDataFrame(silver_emissions).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_cems)
+                spark_session.createDataFrame(silver_emissions, schema=schema_emissions).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_cems)
                 print(f"   ✓ Delta Table Saved: {t_cems}")
 
             if silver_grid:
                 t_grid = config.get_table_fqn("SILVER", "silver_grid_hourly")
-                spark_session.createDataFrame(silver_grid).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_grid)
+                spark_session.createDataFrame(silver_grid, schema=schema_grid).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(t_grid)
                 print(f"   ✓ Delta Table Saved: {t_grid}")
 
             all_quarantined = q_plants + q_gen + q_923 + q_weather + q_emissions + q_grid
             if all_quarantined:
                 t_quarantine = config.get_table_fqn("QUARANTINE", "rejected_records")
-                spark_session.createDataFrame(all_quarantined).write.format("delta").mode("append").saveAsTable(t_quarantine)
+                spark_quarantine = []
+                for q in all_quarantined:
+                    q_copy = dict(q)
+                    if isinstance(q_copy.get("rejected_at"), str):
+                        try:
+                            q_copy["rejected_at"] = datetime.fromisoformat(q_copy["rejected_at"])
+                        except Exception:
+                            q_copy["rejected_at"] = datetime.now(timezone.utc)
+                    spark_quarantine.append(q_copy)
+                spark_session.createDataFrame(spark_quarantine, schema=schema_quarantine).write.format("delta").mode("append").saveAsTable(t_quarantine)
                 print(f"   ✓ Quarantined Records Batch Saved: {t_quarantine} ({len(all_quarantined)} records)")
         except Exception as e:
             print(f"[WARN] Failed to write silver tables to Delta: {e}")
