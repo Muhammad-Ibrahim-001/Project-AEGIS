@@ -788,24 +788,23 @@ def run_gold_warehouse_pipeline(
                 StructField("so2_mass_lbs", DoubleType(), True),
                 StructField("nox_mass_lbs", DoubleType(), True),
                 StructField("co2_mass_tons", DoubleType(), True),
-                StructField("air_temperature_c", DoubleType(), True),
+                StructField("ambient_temp_celsius", DoubleType(), True),
                 StructField("wind_speed_mps", DoubleType(), True),
-                StructField("spatial_distance_km", DoubleType(), True),
-                StructField("temporal_diff_minutes", IntegerType(), True),
-                StructField("_batch_id", StringType(), True),
+                StructField("weather_distance_km", DoubleType(), True),
             ])
 
             schema_f2 = StructType([
+                StructField("snapshot_key", LongType(), True),
                 StructField("month_start_date_key", IntegerType(), True),
                 StructField("plant_key", LongType(), True),
                 StructField("prime_mover_code", StringType(), True),
                 StructField("energy_source_code", StringType(), True),
-                StructField("year", IntegerType(), True),
                 StructField("net_generation_mwh", DoubleType(), True),
+                StructField("fuel_consumed_physical", DoubleType(), True),
                 StructField("fuel_consumed_mmbtu", DoubleType(), True),
                 StructField("avg_heat_rate_btu_kwh", DoubleType(), True),
-                StructField("heat_rate_validation_code", StringType(), True),
-                StructField("_batch_id", StringType(), True),
+                StructField("delivered_fuel_cost_per_mmbtu", DoubleType(), True),
+                StructField("ending_fuel_stock_physical", DoubleType(), True),
             ])
 
             schema_f3 = StructType([
@@ -814,17 +813,13 @@ def run_gold_warehouse_pipeline(
                 StructField("ba_key", LongType(), True),
                 StructField("demand_mw", DoubleType(), True),
                 StructField("demand_forecast_mw", DoubleType(), True),
-                StructField("gen_coal_mw", DoubleType(), True),
-                StructField("gen_natgas_mw", DoubleType(), True),
-                StructField("gen_nuclear_mw", DoubleType(), True),
-                StructField("gen_hydro_mw", DoubleType(), True),
-                StructField("gen_wind_mw", DoubleType(), True),
-                StructField("gen_solar_mw", DoubleType(), True),
+                StructField("net_gen_coal_mw", DoubleType(), True),
+                StructField("net_gen_gas_mw", DoubleType(), True),
+                StructField("net_gen_nuclear_mw", DoubleType(), True),
+                StructField("net_gen_hydro_mw", DoubleType(), True),
+                StructField("net_gen_wind_mw", DoubleType(), True),
+                StructField("net_gen_solar_mw", DoubleType(), True),
                 StructField("net_interchange_mw", DoubleType(), True),
-                StructField("forecast_bias_mw", DoubleType(), True),
-                StructField("wind_solar_penetration_pct", DoubleType(), True),
-                StructField("is_peak_demand_hour", BooleanType(), True),
-                StructField("_batch_id", StringType(), True),
             ])
 
             # 5 Conformed Dimensions (overwrite so re-running is idempotent)
