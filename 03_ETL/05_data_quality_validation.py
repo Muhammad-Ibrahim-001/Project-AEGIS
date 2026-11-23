@@ -32,10 +32,17 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Set
 
 # Add project root and 03_ETL to path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ETL_DIR = PROJECT_ROOT / "03_ETL"
+try:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    ETL_DIR = PROJECT_ROOT / "03_ETL"
+except NameError:
+    ETL_DIR = Path.cwd() if Path.cwd().name == "03_ETL" else Path.cwd() / "03_ETL"
+    PROJECT_ROOT = ETL_DIR.parent if ETL_DIR.name == "03_ETL" else ETL_DIR
+
 if str(ETL_DIR) not in sys.path:
     sys.path.insert(0, str(ETL_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import config
 

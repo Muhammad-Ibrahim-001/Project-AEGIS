@@ -26,8 +26,12 @@ from reportlab.platypus import (
 from reportlab.pdfgen import canvas
 
 # Module directory paths
-MODULE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = MODULE_DIR.parent
+try:
+    MODULE_DIR = Path(__file__).resolve().parent
+    PROJECT_ROOT = MODULE_DIR.parent
+except NameError:
+    MODULE_DIR = Path.cwd() if Path.cwd().name == "03_ETL" else Path.cwd() / "03_ETL"
+    PROJECT_ROOT = MODULE_DIR.parent if MODULE_DIR.name == "03_ETL" else MODULE_DIR
 DATA_DIR = PROJECT_ROOT / "02_Data" / "cleaned_data"
 DOCS_DIR = PROJECT_ROOT / "01_Project_Documentation"
 
