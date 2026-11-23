@@ -386,13 +386,24 @@ if __name__ == "__main__":
     parser.add_argument("--synthetic", action="store_true", default=True, help="Execute pipeline at university rubric scale using deterministic synthetic generator")
     args, _ = parser.parse_known_args()
 
-    # Detect active spark if not already triggered above
+    # Detect active spark:
+    # 1. First, check if running in a client with Databricks Connect (.venv-dbx)
     dbx_spark = None
     try:
-        from pyspark.sql import SparkSession
-        dbx_spark = SparkSession.getActiveSession()
+        from databricks.connect import DatabricksSession
+        import os
+        prof = os.environ.get("DATABRICKS_CONFIG_PROFILE", "dbc-4a52ea97-5404")
+        builder = DatabricksSession.builder.profile(prof)
+        dbx_spark = builder.serverless().getOrCreate()
+        print(f"[SUCCESS] Remote Databricks Serverless Session connected via Spark Connect gRPC (profile: {prof})")
     except Exception:
-        pass
+        # 2. Check if running inside Databricks cluster or active SparkSession
+        try:
+            from pyspark.sql import SparkSession
+            dbx_spark = SparkSession.getActiveSession()
+        except Exception:
+            pass
+
     if dbx_spark is None and ("spark" in globals() or "spark" in locals()):
         dbx_spark = spark
 
