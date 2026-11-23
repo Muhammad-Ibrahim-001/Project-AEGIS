@@ -367,18 +367,36 @@ def run_full_lakehouse_pipeline(
     }
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="DL3004 Master Lakehouse Pipeline Runner")
-    parser.add_argument("--synthetic", action="store_true", help="Execute pipeline at university rubric scale using deterministic synthetic generator")
-    args = parser.parse_args()
+# ==============================================================================
+# DATABRICKS NOTEBOOK DIRECT EXECUTION TRIGGER
+# ==============================================================================
+try:
+    # When executed inside Databricks, 'spark' is automatically pre-injected into global scope
+    if "spark" in globals() or "spark" in locals():
+        print("[INFO] Databricks Cloud SparkSession detected. Executing production pipeline on Serverless Compute...")
+        run_full_lakehouse_pipeline(spark_session=spark, use_synthetic=True)
+except NameError:
+    pass
+except Exception as e:
+    print(f"[NOTE] Databricks trigger note: {e}")
 
-    # If run in Databricks, detect spark
-    spark = None
+if __name__ == "__main__":
+    # Use parse_known_args() so Databricks / Jupyter kernel arguments do not trigger SystemExit
+    parser = argparse.ArgumentParser(description="DL3004 Master Lakehouse Pipeline Runner")
+    parser.add_argument("--synthetic", action="store_true", default=True, help="Execute pipeline at university rubric scale using deterministic synthetic generator")
+    args, _ = parser.parse_known_args()
+
+    # Detect active spark if not already triggered above
+    dbx_spark = None
     try:
         from pyspark.sql import SparkSession
-        spark = SparkSession.getActiveSession()
+        dbx_spark = SparkSession.getActiveSession()
     except Exception:
         pass
+    if dbx_spark is None and ("spark" in globals() or "spark" in locals()):
+        dbx_spark = spark
 
-    run_full_lakehouse_pipeline(spark_session=spark, use_synthetic=args.synthetic)
+    # Prevent double-run if Databricks block already ran above
+    if not ("spark" in globals() or "spark" in locals()):
+        run_full_lakehouse_pipeline(spark_session=dbx_spark, use_synthetic=args.synthetic)
 

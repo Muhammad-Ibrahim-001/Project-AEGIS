@@ -5,25 +5,27 @@
 # Engine:  Apache Spark 3.5+ (Photon) / Delta Lake 3.x / Serverless SQL Warehouse
 # ==============================================================================
 
-This runbook provides complete, unambiguous, step-by-step instructions for running
-Project-AEGIS both in local offline mode (with synthetic rubric-scale generation or
-sample fixtures) and on the live Databricks Serverless Cloud Lakehouse.
+This runbook provides complete, unambiguous, step-by-step instructions for deploying
+and operating Project-AEGIS strictly on the Databricks Serverless Cloud Lakehouse.
 
 ---
 
-## PART I: ARCHITECTURAL BOUNDARY (LOCAL VS. DATABRICKS CLOUD)
+## PART I: MANDATORY ARCHITECTURAL DIRECTIVE — STRICT DATABRICKS CLOUD EXECUTION
 
-The pipeline is engineered with a unified codebase that automatically adapts to its
-runtime environment:
+Project-AEGIS is built, managed, and executed strictly on the **Databricks Serverless Cloud Lakehouse (`dwbi_catalog`)**:
 
-| Capability | Local Offline Mode | Databricks Serverless Cloud |
-| :--- | :--- | :--- |
-| **Execution Engine** | Python 3.12 Standard Library (`uv run`) | Apache Spark 3.5+ / Photon on Serverless Compute |
-| **Storage Format** | In-memory + Local CSV audit logs (`02_Data/cleaned_data/`) | Delta Lake tables (`USING DELTA`) with ACID log |
-| **Catalog / Namespace** | Python dictionary structures (`dw.dim_*`, `dw.fact_*`) | Unity Catalog 3-tier namespace (`dwbi_catalog.schema.table`) |
-| **Performance Tuning** | Spherical Haversine in pure Python | `/*+ BROADCAST(s) */` spatial cross-join + Liquid Clustering |
-| **Reporting / BI** | CSV exports + direct query emulation | Serverless SQL Warehouse + Power BI DirectQuery views |
-| **Audit Logs** | `02_Data/cleaned_data/cleaning_step_log.csv` & `dq_results.csv` | `dwbi_catalog.silver_conformed.cleaning_step_log` & `quarantine.dq_check_results` |
+* **Strict Cloud Execution Policy:** All operational pipeline stages (Bronze ingestion, Silver conformance, Gold Kimball Star Schema, Liquid Clustering, and reporting marts) strictly execute inside Databricks Cloud Compute (Photon Engine) and Databricks SQL Warehouses.
+* **Zero Local Operational Dependency:** The production lakehouse does not store or process fact/dimension tables locally. All data persists immutably in Delta Lake tables under the Unity Catalog 3-tier namespace (`dwbi_catalog`).
+* **Workstation Scope:** Local machines serve solely as developer editing environments for Git synchronization and pre-commit unit test validation.
+
+| Architecture Dimension | Strict Production Standard (Databricks Serverless Cloud) |
+| :--- | :--- |
+| **Execution Engine** | Apache Spark 3.5+ / Photon Vectorized Engine on Serverless Compute |
+| **Storage & ACID Log** | Delta Lake tables (`USING DELTA`) with Liquid Clustering (`CLUSTER BY`) |
+| **Governance & Metastore** | Unity Catalog 3-tier namespace (`dwbi_catalog.bronze_staging`, `silver_conformed`, `gold_warehouse`, `gold_marts`, `quarantine`) |
+| **Spatial Crosswalk** | `/*+ BROADCAST(s) */` vectorized spatial joins + Haversine near-neighbor matching |
+| **Reporting & BI** | Databricks Serverless SQL Warehouse via Native DirectQuery in Microsoft Power BI |
+| **Audit Trails** | `dwbi_catalog.bronze_staging.etl_run_log` & `quarantine.rejected_records` |
 
 ---
 

@@ -12,6 +12,9 @@
 
 This project implements an enterprise-grade, end-to-end cloud data lakehouse on **Databricks Serverless Compute** powered by **Apache Spark**, **Delta Lake**, **Unity Catalog**, and **Microsoft Power BI Desktop**. It analyzes the relationship between electrical grid dispatch, fossil-fuel power plant smokestack emissions, and synoptic weather stress events across the United States.
 
+> **MANDATORY PRODUCTION DIRECTIVE:**  
+> The entire Medallion Lakehouse pipeline strictly executes in the cloud on **Databricks Serverless Compute (Photon Engine)** and **Databricks SQL Warehouses** under Unity Catalog (`dwbi_catalog`). All raw landing, Silver cleansing, Gold Kimball Star Schema fact/dimension tables, Liquid Clustering, and reporting marts persist in Delta Lake tables in the cloud with zero local operational dependency. Local environments serve strictly for version control and developer tooling.
+
 It replaces the default mock retail scenario with an uncompromised, real-world multi-source data ecosystem:
 1. **EIA-860 / EIA-860M:** Generator asset inventory and the many-to-many `6_1_EnviroAssoc` Boiler-to-Generator topology.
 2. **EIA-923:** Monthly net generation (`Netgen_MWh`), fuel consumption, delivered fuel prices, and plant-level fuel stocks.

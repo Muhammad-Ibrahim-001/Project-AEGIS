@@ -5,10 +5,10 @@ Enterprise cloud data lakehouse on Databricks Serverless analyzing electrical gr
 
 ## Scope
 In: Bronze raw landing, Silver DQ & SCD-2, Gold Kimball Star Schema (5 dims, 3 facts), Gold reporting marts, OLAP SQL, Power BI DirectQuery.
-Out: Course retail scenario (CampusCart), local PostgreSQL, unclustered Hive Metastore.
+Out: Course retail scenario (CampusCart), local PostgreSQL, unclustered Hive Metastore, local operational execution.
 
 ## Stack
-Databricks Serverless Compute (Photon), Delta Lake (Liquid Clustering), Unity Catalog (`dwbi_catalog`), Python 3.12/3.14, unittest, Power BI DirectQuery.
+Databricks Serverless Compute (Photon Engine), Delta Lake (Liquid Clustering), Unity Catalog (`dwbi_catalog`), Databricks Serverless SQL Warehouse, Microsoft Power BI DirectQuery.
 
 ## Structure
 - `01_Project_Documentation`: Master specs, requirements, data dictionaries, schema diagrams.
@@ -20,13 +20,12 @@ Databricks Serverless Compute (Photon), Delta Lake (Liquid Clustering), Unity Ca
 - `tests/unit`: Fast, isolated Tier 1 unit tests.
 
 ## Run and test
-- Install: `uv sync` or `py -3.12 -m venv .venv-dbx`
-- Run Bronze: `uv run python 03_ETL/01_bronze_ingestion.py`
-- Run Silver: `uv run python 03_ETL/02_silver_cleansing_and_scd.py`
-- Test all: `uv run python -m unittest discover tests`
-- Test one unit: `uv run python -m unittest tests/unit/test_silver_cleansing.py`
+- Production: Execute `03_ETL/master_pipeline_runner.py` directly inside Databricks Serverless Compute.
+- SQL & Views: Execute `04_SQL/warehouse.sql` and `04_SQL/Views.sql` in Databricks SQL Warehouse.
+- CI/CD Validation: `uv run python -m unittest discover tests`
 
 ## Decisions
+- Strict Cloud Execution: All production pipelines, Delta tables, and reporting views run strictly on Databricks Serverless Cloud Lakehouse (`dwbi_catalog`) with zero local operational dependency.
 - Databricks Serverless over PostgreSQL: native distributed compute, Delta ACID, Photon vectorization.
 - Liquid Clustering over Partitioning: eliminates small file problem; optimizes multi-grain joins.
 - Shifting Excel header scanning: EIA-860 Row 2 and EIA-923 Row 6 dynamic detection.
