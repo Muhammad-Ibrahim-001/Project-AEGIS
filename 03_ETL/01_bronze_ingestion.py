@@ -1,5 +1,3 @@
-# Databricks notebook source
-# COMMAND ----------
 """
 ==============================================================================
 DL3004 DWBI Final Project: Bronze Staging Lakehouse Ingestion Engine

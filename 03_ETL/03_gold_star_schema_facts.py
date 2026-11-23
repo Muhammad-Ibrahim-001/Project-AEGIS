@@ -1,5 +1,3 @@
-# Databricks notebook source
-# COMMAND ----------
 """
 ==============================================================================
 DL3004 DWBI Final Project: Gold Dimensional Star Schema & Fact Population
