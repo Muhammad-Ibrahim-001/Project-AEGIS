@@ -160,9 +160,10 @@ SELECT
 FROM fact_monthly_plant_operations m
 JOIN dim_plant p ON m.plant_key = p.plant_key
 JOIN dim_date d ON m.month_start_date_key = d.date_key
-WHERE m.prime_mover_code = 'GT'
-  AND m.avg_heat_rate_btu_kwh > 12000.0
-ORDER BY m.net_generation_mwh DESC;
+WHERE m.prime_mover_code = 'CA'
+  AND m.avg_heat_rate_btu_kwh > 7600.0
+ORDER BY m.net_generation_mwh DESC
+LIMIT 50;
 
 -- Baseline Metrics:
 --   Execution Time: ~26.4 ms
@@ -189,9 +190,10 @@ SELECT
 FROM fact_monthly_plant_operations m
 JOIN dim_plant p ON m.plant_key = p.plant_key
 JOIN dim_date d ON m.month_start_date_key = d.date_key
-WHERE m.prime_mover_code = 'GT'
-  AND m.avg_heat_rate_btu_kwh > 12000.0
-ORDER BY m.net_generation_mwh DESC;
+WHERE m.prime_mover_code = 'CA'
+  AND m.avg_heat_rate_btu_kwh > 7600.0
+ORDER BY m.net_generation_mwh DESC
+LIMIT 50;
 
 -- Optimized Metrics:
 --   Execution Time: ~3.2 ms  (87.9% Speedup)
@@ -216,8 +218,7 @@ SELECT
 FROM fact_regional_grid_demand g
 JOIN dim_balancing_authority ba ON g.ba_key = ba.ba_key
 JOIN dim_date d ON g.date_key = d.date_key
-WHERE ba.ba_code = 'ERCO'
-  AND g.demand_mw > 45000.0
+WHERE ba.ba_code = 'PJM'
 ORDER BY g.demand_mw DESC;
 
 -- Baseline Metrics:
@@ -245,8 +246,7 @@ SELECT
 FROM fact_regional_grid_demand g
 JOIN dim_balancing_authority ba ON g.ba_key = ba.ba_key
 JOIN dim_date d ON g.date_key = d.date_key
-WHERE ba.ba_code = 'ERCO'
-  AND g.demand_mw > 45000.0
+WHERE ba.ba_code = 'PJM'
 ORDER BY g.demand_mw DESC;
 
 -- Optimized Metrics:
