@@ -16,8 +16,8 @@ class TestStage5BusinessQuestions(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.brd_path = PROJECT_ROOT / "01_Project_Documentation" / "Business_Requirements_Document.md"
-        cls.req_path = PROJECT_ROOT / "01_Project_Documentation" / "Requirements.md"
+        cls.brd_path = PROJECT_ROOT / "01_Project_Documentation" / "phase_1" / "Business_Requirements_Document.md"
+        cls.req_path = PROJECT_ROOT / "01_Project_Documentation" / "phase_1" / "Requirements.md"
         cls.views_sql_path = PROJECT_ROOT / "04_SQL" / "Views.sql"
         cls.marts_py_path = PROJECT_ROOT / "03_ETL" / "04_gold_reporting_marts.py"
         cls.olap_sql_path = PROJECT_ROOT / "05_Analytics" / "olap_queries.sql"
@@ -95,8 +95,8 @@ class TestStage5BusinessQuestions(unittest.TestCase):
         doc_files = [
             self.brd_path,
             self.req_path,
-            PROJECT_ROOT / "01_Project_Documentation" / "Project_Proposal.md",
-            PROJECT_ROOT / "01_Project_Documentation" / "schema_diagram_mermaid.md",
+            PROJECT_ROOT / "01_Project_Documentation" / "phase_1" / "Project_Proposal.md",
+            PROJECT_ROOT / "01_Project_Documentation" / "phase_1" / "schema_diagram_mermaid.md",
             PROJECT_ROOT / "archived" / "Phase_1_Submission" / "Phase_1_Project_Proposal_and_Design_Document.md",
             PROJECT_ROOT / "archived" / "Phase_1_Submission" / "Phase_1_Architecture_and_Schema_Specification.md",
             PROJECT_ROOT / "archived" / "Phase_1_Submission" / "Phase_1_Data_Dictionary.md",

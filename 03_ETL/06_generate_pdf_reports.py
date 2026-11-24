@@ -33,7 +33,7 @@ except NameError:
     MODULE_DIR = Path.cwd() if Path.cwd().name == "03_ETL" else Path.cwd() / "03_ETL"
     PROJECT_ROOT = MODULE_DIR.parent if MODULE_DIR.name == "03_ETL" else MODULE_DIR
 DATA_DIR = PROJECT_ROOT / "02_Data" / "cleaned_data"
-DOCS_DIR = PROJECT_ROOT / "01_Project_Documentation"
+DOCS_DIR = PROJECT_ROOT / "01_Project_Documentation" / "phase_2"
 
 
 # ==============================================================================

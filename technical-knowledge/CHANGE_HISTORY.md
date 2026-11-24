@@ -156,5 +156,20 @@ To preserve compatibility and prevent regressions during future development spri
 * **`01_Project_Documentation/` Cleaned:** Purged superseded legacy schema/duplicate files (`Data_Dictionary.xlsx`, `Requirements.md`, `Requirements.pdf`, `Schema.pdf`, `Schema.png`, and `schema_diagram_mermaid.md`). Preserved [`Architecture.pdf`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/Architecture.pdf) and [`Architecture.png`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/Architecture.png) (restored per user request), the 7 official deliverables, active technical specs (`DATA_SOURCES_MASTER_SPECIFICATION.md`, `column_removal_map.md`), `course_requirements/`, and `Team_Guides/`.
 * **Index Synchronization:** Updated [`01_Project_Documentation/README.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/README.md), [`DATA_SOURCES_MASTER_SPECIFICATION.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/01_Project_Documentation/DATA_SOURCES_MASTER_SPECIFICATION.md), root [`README.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/README.md), [`PROJECT_BLUEPRINT.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/PROJECT_BLUEPRINT.md), and [`PROJECT_PROFILE.md`](file:///d:/Semester%20Projects/DWBI%20LAB%20Project/technical-knowledge/PROJECT_PROFILE.md) to reflect actual repository contents.
 
+---
+
+## 9. Restructuring of `01_Project_Documentation/` into Phase-Dedicated Directories & Deduplication (November 24, 2026)
+
+* **Phase Directory Restructuring:** In accordance with user directives, cleanly structured `01_Project_Documentation/` into dedicated, modular phase subdirectories while preserving `archived/` as the historical submission snapshot store:
+  * `phase_1/`: Official 7 syllabus deliverables (`01_Project_Proposal.pdf` through `07_Data_Dictionary.xlsx`) and source markdown specifications (`Project_Proposal.md`, `Business_Requirements_Document.md`, `Business_Questions.md`, `Grain_Definitions.md`, `Requirements.md`, `schema_diagram_mermaid.md`).
+  * `phase_2/`: Official ReportLab course audit reports (`Data_Cleaning_Report.pdf` and `Data_Quality_Report.pdf`).
+  * `phase_3/`: Official 8-page Databricks Query Profile report (`Indexing_Report.pdf`), publication template (`Indexing_Report.html`), execution roadmap (`analytical_queries_plan.md`), and 16 authentic query profile screenshots (`screenshots/`).
+  * `specifications/`: Master technical specifications (`DATA_SOURCES_MASTER_SPECIFICATION.md`, `column_removal_map.md`, and Silver layer architecture guides).
+  * Root preservation: Retained `Architecture.png`/`Architecture.pdf`, `course_requirements/`, and `Team_Guides/` at root level.
+* **Redundancy Elimination:** Removed duplicate loose `01_Project_Documentation/Data_Dictionary.xlsx`, establishing `phase_1/07_Data_Dictionary.xlsx` as the single authoritative 7-tab catalog.
+* **Generator & Test Synchronization:** Updated `03_ETL/06_generate_pdf_reports.py`, `03_ETL/07_generate_indexing_report.py`, `03_ETL/generate_html_indexing_report.py`, `tests/unit/test_stage6_reports.py`, and `tests/unit/test_stage5_business_questions.py` to target new phase paths. All 90 unit tests verified green.
+* **Master Documentation & Knowledge Base Alignment:** Synchronized `01_Project_Documentation/README.md`, `README.md`, `PROJECT.md`, `PROJECT_BLUEPRINT.md`, `technical-knowledge/PROJECT_PROFILE.md`, and re-baselined `technical-knowledge/manifest.json`.
+
+
 
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Paths
 ROOT_DIR = Path(r"d:\Semester Projects\DWBI LAB Project")
-DOC_DIR = ROOT_DIR / "01_Project_Documentation"
+DOC_DIR = ROOT_DIR / "01_Project_Documentation" / "phase_3"
 SCREENSHOT_DIR = DOC_DIR / "screenshots"
 HTML_OUTPUT = DOC_DIR / "Indexing_Report.html"
 PDF_OUTPUT = DOC_DIR / "Indexing_Report.pdf"

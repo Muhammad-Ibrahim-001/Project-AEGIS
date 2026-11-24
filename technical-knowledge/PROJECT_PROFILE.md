@@ -72,17 +72,30 @@ d:\Semester Projects\DWBI LAB Project\
 ├── README.md                                    # Repository overview & team division of work
 │
 ├── 01_Project_Documentation/
-│   ├── 01_Project_Proposal.pdf                  # Official Phase 1 Deliverable 1: Proposal & Blueprint
-│   ├── 02_Business_Requirements_Document.pdf    # Official Phase 1 Deliverable 2: Enterprise BRD
-│   ├── 03_10_Business_Questions.pdf             # Official Phase 1 Deliverable 3: 12 Business Questions
-│   ├── 04_Fact_and_Dimension_Identification.pdf # Official Phase 1 Deliverable 4: Kimball Bus Matrix
-│   ├── 05_Grain_Definition_Document.pdf         # Official Phase 1 Deliverable 5: Atomic Grain Specs
-│   ├── 06_Schema_Diagrams.pdf                   # Official Phase 1 Deliverable 6: 3-Tier Schema Diagrams
-│   ├── 07_Data_Dictionary.xlsx                  # Official Phase 1 Deliverable 7: 7-tab data dictionary
 │   ├── Architecture.pdf / Architecture.png      # End-to-end pipeline architecture diagram
-│   ├── DATA_SOURCES_MASTER_SPECIFICATION.md     # 633-line federal data source catalog & schemas
-│   ├── column_removal_map.md                    # Silver -> Gold column pruning map
-│   ├── README.md                                # Documentation directory index
+│   ├── README.md                                # Documentation directory index & navigation
+│   ├── phase_1/                                 # Phase 1: Dimensional Modeling & Requirements
+│   │   ├── 01_Project_Proposal.pdf              # Official Phase 1 Deliverable 1: Proposal & Blueprint
+│   │   ├── 02_Business_Requirements_Document.pdf # Official Phase 1 Deliverable 2: Enterprise BRD
+│   │   ├── 03_10_Business_Questions.pdf         # Official Phase 1 Deliverable 3: 12 Business Questions
+│   │   ├── 04_Fact_and_Dimension_Identification.pdf # Official Phase 1 Deliverable 4: Kimball Bus Matrix
+│   │   ├── 05_Grain_Definition_Document.pdf     # Official Phase 1 Deliverable 5: Atomic Grain Specs
+│   │   ├── 06_Schema_Diagrams.pdf               # Official Phase 1 Deliverable 6: 3-Tier Schema Diagrams
+│   │   └── 07_Data_Dictionary.xlsx              # Official Phase 1 Deliverable 7: 7-tab data dictionary
+│   ├── phase_2/                                 # Phase 2: Data Quality & Cleansing
+│   │   ├── Data_Cleaning_Report.pdf             # Official Data Cleaning Audit Report (ReportLab)
+│   │   └── Data_Quality_Report.pdf              # Official 6-Category Data Quality Report (ReportLab)
+│   ├── phase_3/                                 # Phase 3: Analytics, Optimization & BI
+│   │   ├── Indexing_Report.pdf                  # Official 8-Page Databricks Query Profile Report
+│   │   ├── Indexing_Report.html                 # Publication HTML template
+│   │   ├── analytical_queries_plan.md           # Analytical & OLAP query execution roadmap
+│   │   └── screenshots/                         # Authentic Databricks Query Profile proofs (16 files)
+│   ├── specifications/                          # Technical Specifications & Data Catalogs
+│   │   ├── DATA_SOURCES_MASTER_SPECIFICATION.md # 633-line federal data source catalog & schemas
+│   │   ├── column_removal_map.md                # Silver -> Gold column pruning map
+│   │   ├── Silver_Layer_Architecture_and_Concepts.md
+│   │   ├── Silver_Layer_Detailed_Guide.md
+│   │   └── Silver_Layer_Functions_and_Pipeline_Reference.md
 │   ├── course_requirements/                     # MANDATORY: Official syllabus & grading rubrics
 │   │   ├── DWBI Final Project Overview.pdf
 │   │   ├── DWBI Lab Phase 1.pdf
@@ -162,10 +175,12 @@ d:\Semester Projects\DWBI LAB Project\
 | `.agents` | **Implemented** | Operational directive defining mandatory file scan boundaries (prohibits parsing binary `Team_Guides/`), canonical lakehouse architecture, and team work package ownership. |
 | `DATABRICKS_SERVERLESS_ARCHITECTURE.md` | **Implemented** | Master technical runbook for Databricks Serverless Compute, Serverless SQL Warehouse, Unity Catalog structure, and Power BI DirectQuery integration. |
 | `PROJECT_BLUEPRINT.md` | **Implemented** | Authoritative Kimball dimensional model, mathematical thermodynamic formulas, and physical validation algorithms. |
-| `01_Project_Documentation/DATA_SOURCES_MASTER_SPECIFICATION.md` | **Implemented** | Exhaustive technical specification of the 6 primary data sources, attribute definitions, and relational joins. |
-| `01_Project_Documentation/column_removal_map.md` | **Implemented** | Source-by-source Silver-to-Gold column pruning map across 343 raw physical columns (10 federal feeds). |
-| `01_Project_Documentation/01_`–`07_` Deliverables | **Implemented (Phase 1)** | Formal 7-deliverable Phase 1 academic package (`01_Project_Proposal.pdf` through `07_Data_Dictionary.xlsx`), superseding legacy `schema_diagram_mermaid.md`, `Schema.png`, `Requirements.md/.pdf`, `Schema.pdf`, and old `Data_Dictionary.xlsx` (purged during folder cleanup). |
-| `01_Project_Documentation/Architecture.pdf` & `Architecture.png` | **Preserved (Pipeline Diagram)** | End-to-end 8-stage architecture visual diagram retained in `01_Project_Documentation/` per user request. *(Note: diagram labels retain legacy `project_staging` / `project_dw` / `project_reporting` strings.)* |
+| `01_Project_Documentation/specifications/DATA_SOURCES_MASTER_SPECIFICATION.md` | **Implemented** | Exhaustive technical specification of the 6 primary data sources, attribute definitions, and relational joins. |
+| `01_Project_Documentation/specifications/column_removal_map.md` | **Implemented** | Source-by-source Silver-to-Gold column pruning map across 343 raw physical columns (10 federal feeds). |
+| `01_Project_Documentation/phase_1/01_`–`07_` Deliverables | **Implemented (Phase 1)** | Formal 7-deliverable Phase 1 academic package (`01_Project_Proposal.pdf` through `07_Data_Dictionary.xlsx`), organized in `phase_1/`. |
+| `01_Project_Documentation/phase_2/` Reports | **Implemented (Phase 2)** | Official `Data_Cleaning_Report.pdf` and `Data_Quality_Report.pdf` compiled by ReportLab engine in `phase_2/`. |
+| `01_Project_Documentation/phase_3/` Reports | **Implemented (Phase 3)** | Official 8-page `Indexing_Report.pdf`, HTML template, and 16 Query Profile screenshots in `phase_3/`. |
+| `01_Project_Documentation/Architecture.pdf` & `Architecture.png` | **Preserved (Pipeline Diagram)** | End-to-end 8-stage architecture visual diagram retained in `01_Project_Documentation/` root. |
 | `archived/early_sql_drafts/` (`staging.sql`, `warehouse.sql`, `quality_checks.sql`, `Views.sql`, `OLAP.sql`) | **Partially Implemented (Drafted)** | Valid Databricks SQL DDL/DML scripts covering schemas, dimensions, facts with Liquid Clustering, quarantine rules, reporting views, and OLAP queries. Currently stored as standalone scripts, awaiting porting into modular PySpark notebooks. |
 | Planned Notebooks: `01_bronze_ingestion.py`, `02_silver_cleansing_and_scd.py`, `03_gold_star_schema_facts.py`, `04_gold_reporting_marts.py` | **Planned** | Operational Databricks PySpark notebooks specified in `DATABRICKS_SERVERLESS_ARCHITECTURE.md` Section 7 Step 3 to execute automated batch extraction and transformation. |
 | Power BI Report (`06_Dashboard/PowerBI.pbix`) | **Planned** | 3-page interactive visual dashboard connecting live to Databricks Serverless SQL Warehouse via Native DirectQuery. |

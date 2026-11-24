@@ -9,7 +9,7 @@ from pathlib import Path
 import pypdf
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DOCS_DIR = PROJECT_ROOT / "01_Project_Documentation"
+DOCS_DIR = PROJECT_ROOT / "01_Project_Documentation" / "phase_2"
 DATA_DIR = PROJECT_ROOT / "02_Data" / "cleaned_data"
 ETL_DIR = PROJECT_ROOT / "03_ETL"
 

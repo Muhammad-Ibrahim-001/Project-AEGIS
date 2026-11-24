@@ -11,7 +11,7 @@ Out: Course retail scenario (CampusCart), local PostgreSQL, unclustered Hive Met
 Databricks Serverless Compute (Photon Engine), Delta Lake (Liquid Clustering), Unity Catalog (`dwbi_catalog`), Databricks Serverless SQL Warehouse, Microsoft Power BI DirectQuery.
 
 ## Structure
-- `01_Project_Documentation`: Master specs, requirements, data dictionaries, schema diagrams.
+- `01_Project_Documentation`: Phase deliverables (`phase_1/`, `phase_2/`, `phase_3/`), master technical specifications, and course requirements.
 - `02_Data`: Raw and cleaned bulk archives.
 - `03_ETL`: Master config (`config.py`) and Medallion ETL scripts (`01_bronze_ingestion.py`, etc.).
 - `04_SQL`: Production Databricks SQL DDL (warehouse, staging, views, quality checks).
