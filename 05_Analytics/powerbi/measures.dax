@@ -1,0 +1,7 @@
+Total Net Generation MWh = SUM(vw_plant_performance[net_generation_mwh])
+Total CO2 Tons = SUM(vw_emissions_intensity[total_co2_tons])
+Active Plants = DISTINCTCOUNT(vw_plant_performance[orispl_code])
+Fleet Heat Rate = DIVIDE(SUM(vw_plant_performance[total_fuel_mmbtu])*1000000, SUM(vw_plant_performance[net_generation_mwh])*1000)
+CO2 Intensity = DIVIDE(SUM(vw_emissions_intensity[total_co2_tons]), SUM(vw_emissions_intensity[total_gross_mw]))
+Avg Renewable Penetration % = AVERAGE(vw_grid_stress[renewable_penetration_pct])
+Peak Demand MW = MAX(vw_grid_stress[demand_mw])

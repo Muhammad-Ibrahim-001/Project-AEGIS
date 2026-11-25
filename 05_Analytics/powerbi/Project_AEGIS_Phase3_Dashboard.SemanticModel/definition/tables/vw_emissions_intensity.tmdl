@@ -1,0 +1,141 @@
+table vw_emissions_intensity
+	lineageTag: 1616e18a-6b90-4079-96ab-568df06d3803
+
+	measure 'CO2 Intensity' = DIVIDE(SUM(vw_emissions_intensity[total_co2_tons]), SUM(vw_emissions_intensity[total_gross_mw]))
+		formatString: 0.0000
+		lineageTag: 032b0b27-a481-47f6-9289-b4cd1d0d5ad1
+
+	measure 'Total CO2 Tons' = SUM(vw_emissions_intensity[total_co2_tons])
+		formatString: #,0
+		lineageTag: ce8601d2-3993-4396-af67-8bdfdd299b99
+
+	column calendar_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 1f3688de-ba31-4a6b-828e-d6cde02d8420
+		summarizeBy: sum
+		sourceColumn: calendar_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_month
+		dataType: int64
+		formatString: 0
+		lineageTag: b448950e-1b65-416c-acca-beaabd57e45d
+		summarizeBy: sum
+		sourceColumn: calendar_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_date
+		dataType: string
+		lineageTag: 22882198-3d54-4b10-ae07-3b9ee20f893a
+		summarizeBy: none
+		sourceColumn: calendar_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column orispl_code
+		dataType: int64
+		formatString: 0
+		lineageTag: 4b1dfd17-db64-4879-be8d-ee7499d5ab2b
+		summarizeBy: sum
+		sourceColumn: orispl_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column plant_name
+		dataType: string
+		lineageTag: 942ce337-5c1c-4a61-9d1e-d40929334f5e
+		summarizeBy: none
+		sourceColumn: plant_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column state_code
+		dataType: string
+		lineageTag: 71fa5025-d36c-4202-b55d-e0d915a219b0
+		summarizeBy: none
+		sourceColumn: state_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column ba_code
+		dataType: string
+		lineageTag: 15496a7e-c3dd-4985-a90a-8d563b30515a
+		summarizeBy: none
+		sourceColumn: ba_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_gross_mw
+		dataType: double
+		lineageTag: f0b0bcab-d0e2-4907-9db6-6328c30ff756
+		summarizeBy: sum
+		sourceColumn: total_gross_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_co2_tons
+		dataType: double
+		lineageTag: 025515de-b0e7-47e6-976b-132b18ea6ecb
+		summarizeBy: sum
+		sourceColumn: total_co2_tons
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_so2_lbs
+		dataType: double
+		lineageTag: 8dd6c906-0dfd-4d54-a51a-3e840f28b57c
+		summarizeBy: sum
+		sourceColumn: total_so2_lbs
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_nox_lbs
+		dataType: double
+		lineageTag: 31e37d3f-38ab-4b14-a61c-288ee8723d8b
+		summarizeBy: sum
+		sourceColumn: total_nox_lbs
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column co2_intensity_tons_per_mw
+		dataType: double
+		lineageTag: a68f7ff2-0607-430f-95d6-4ac32f5c2bcb
+		summarizeBy: sum
+		sourceColumn: co2_intensity_tons_per_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_ambient_temp_celsius
+		dataType: double
+		lineageTag: b0b246d6-43cd-48e1-be20-ca17828ddf0c
+		summarizeBy: sum
+		sourceColumn: avg_ambient_temp_celsius
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition vw_emissions_intensity = m
+		mode: import
+		source =
+				let
+				    Source = Databricks.Catalogs("dbc-4a52ea97-5404.cloud.databricks.com", "/sql/1.0/warehouses/605270cce316765a", [Catalog=null, Database=null, QueryTags=null, EnableAutomaticProxyDiscovery=null, Implementation="2.0", Protocol=null]),
+				    dwbi_catalog_Database = Source{[Name="dwbi_catalog",Kind="Database"]}[Data],
+				    gold_marts_Schema = dwbi_catalog_Database{[Name="gold_marts",Kind="Schema"]}[Data],
+				    vw_emissions_intensity_View = gold_marts_Schema{[Name="vw_emissions_intensity",Kind="View"]}[Data]
+				in
+				    vw_emissions_intensity_View
+

@@ -1,0 +1,8 @@
+{
+  "version": "4.0",
+  "datasetReference": {
+    "byPath": {
+      "path": "../Project_AEGIS_Phase3_Dashboard.SemanticModel"
+    }
+  }
+}

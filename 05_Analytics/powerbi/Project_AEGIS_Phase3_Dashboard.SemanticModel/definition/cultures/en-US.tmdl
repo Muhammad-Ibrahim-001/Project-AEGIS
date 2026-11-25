@@ -1,0 +1,179 @@
+cultureInfo en-US
+
+	linguisticMetadata =
+			{
+			  "Version": "2.0.0",
+			  "Language": "en-US",
+			  "Entities": {
+			    "vw_monthly_generation_mix.energy_source_code": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_monthly_generation_mix",
+			          "ConceptualProperty": "energy_source_code"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Fuel": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_plant_performance.calendar_year": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_plant_performance",
+			          "ConceptualProperty": "calendar_year"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Year": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_plant_performance.plant_name": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_plant_performance",
+			          "ConceptualProperty": "plant_name"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Plant": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_plant_performance.state_code": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_plant_performance",
+			          "ConceptualProperty": "state_code"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "State": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_plant_performance.prime_mover_code": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_plant_performance",
+			          "ConceptualProperty": "prime_mover_code"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Prime mover": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_emissions_intensity.state_code": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_emissions_intensity",
+			          "ConceptualProperty": "state_code"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "State": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_emissions_intensity.calendar_month": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_emissions_intensity",
+			          "ConceptualProperty": "calendar_month"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Month": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "vw_grid_stress.ba_code": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "vw_grid_stress",
+			          "ConceptualProperty": "ba_code"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Balancing authority": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    }
+			  }
+			}
+		contentType: json
+

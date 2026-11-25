@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Project_AEGIS_Phase3_Dashboard"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "313c8740-ff30-4876-923d-185711f74f81"
+  }
+}

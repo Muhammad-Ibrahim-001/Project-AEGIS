@@ -1,0 +1,140 @@
+table vw_plant_performance
+	lineageTag: bc9a9818-84e7-4f24-85e2-f9c4a62aae2e
+
+	measure 'Fleet Heat Rate' = DIVIDE(SUM(vw_plant_performance[total_fuel_mmbtu])*1000000, SUM(vw_plant_performance[net_generation_mwh])*1000)
+		formatString: #,0
+		lineageTag: 08bd5a66-4567-4dfd-b4c9-97236b145aa1
+
+	measure 'Active Plants' = DISTINCTCOUNT(vw_plant_performance[orispl_code])
+		formatString: #,0
+		lineageTag: ba659447-dddb-47d9-9636-0742878831c3
+
+	measure 'Total Net Generation MWh' = SUM(vw_plant_performance[net_generation_mwh])
+		formatString: #,0
+		lineageTag: 86478171-bcb0-4f70-b7f8-4946ef376196
+
+	column calendar_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 64a3ac25-8268-4cf5-8c55-d5114ca827ae
+		summarizeBy: sum
+		sourceColumn: calendar_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name
+		dataType: string
+		lineageTag: fc44cb85-d4db-436d-84ad-6aff2e4f26bc
+		summarizeBy: none
+		sourceColumn: month_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column orispl_code
+		dataType: int64
+		formatString: 0
+		lineageTag: 68f6af7b-2fb0-46ea-9ad3-73f9a582ff58
+		summarizeBy: sum
+		sourceColumn: orispl_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column plant_name
+		dataType: string
+		lineageTag: ed49f0b2-b933-4524-9112-7d1a61c658ff
+		summarizeBy: none
+		sourceColumn: plant_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column utility_name
+		dataType: string
+		lineageTag: 3123aa5a-cc6b-4460-b380-27ecd11a018b
+		summarizeBy: none
+		sourceColumn: utility_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column state_code
+		dataType: string
+		lineageTag: d9cfead1-15a8-430b-9e5b-c49d4a21113f
+		summarizeBy: none
+		sourceColumn: state_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column prime_mover_code
+		dataType: string
+		lineageTag: 01a5181b-0c75-4158-8945-73c964105359
+		summarizeBy: none
+		sourceColumn: prime_mover_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column energy_source_code
+		dataType: string
+		lineageTag: 7e6f280b-42e5-4136-b11c-8a69fb81506c
+		summarizeBy: none
+		sourceColumn: energy_source_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column net_generation_mwh
+		dataType: double
+		lineageTag: 9baa962b-c413-460b-b8e5-0e904a109242
+		summarizeBy: sum
+		sourceColumn: net_generation_mwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_fuel_mmbtu
+		dataType: double
+		lineageTag: 0048f143-6aa0-4d28-a455-83ba9de14014
+		summarizeBy: sum
+		sourceColumn: total_fuel_mmbtu
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_heat_rate_btu_kwh
+		dataType: double
+		lineageTag: 7b99b5d1-30e5-4e55-b9e4-17d2620629c2
+		summarizeBy: sum
+		sourceColumn: avg_heat_rate_btu_kwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_delivered_fuel_cost
+		dataType: double
+		lineageTag: ea1a5ad5-f7f6-4b45-a9aa-2c3fb5059c9a
+		summarizeBy: sum
+		sourceColumn: avg_delivered_fuel_cost
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column operational_efficiency_status
+		dataType: string
+		lineageTag: fbbeb23e-0a4e-4d82-90f8-a1fd245ff312
+		summarizeBy: none
+		sourceColumn: operational_efficiency_status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition vw_plant_performance = m
+		mode: import
+		source =
+				let
+				    Source = Databricks.Catalogs("dbc-4a52ea97-5404.cloud.databricks.com", "/sql/1.0/warehouses/605270cce316765a", [Catalog=null, Database=null, QueryTags=null, EnableAutomaticProxyDiscovery=null, Implementation="2.0", Protocol=null]),
+				    dwbi_catalog_Database = Source{[Name="dwbi_catalog",Kind="Database"]}[Data],
+				    gold_marts_Schema = dwbi_catalog_Database{[Name="gold_marts",Kind="Schema"]}[Data],
+				    vw_plant_performance_View = gold_marts_Schema{[Name="vw_plant_performance",Kind="View"]}[Data]
+				in
+				    vw_plant_performance_View
+

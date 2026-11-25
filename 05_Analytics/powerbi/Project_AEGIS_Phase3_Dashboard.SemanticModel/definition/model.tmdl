@@ -1,0 +1,22 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["vw_emissions_intensity","vw_grid_stress","vw_monthly_generation_mix","vw_plant_performance"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table vw_emissions_intensity
+ref table vw_grid_stress
+ref table vw_monthly_generation_mix
+ref table vw_plant_performance
+
+ref cultureInfo en-US
+

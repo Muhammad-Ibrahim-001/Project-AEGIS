@@ -1,0 +1,168 @@
+table vw_grid_stress
+	lineageTag: f8edab19-8547-477a-96bd-edb4970aaaa8
+
+	measure 'Peak Demand MW' = MAX(vw_grid_stress[demand_mw])
+		formatString: #,0
+		lineageTag: 98a5144a-a200-4010-a7f7-a82bd7d97435
+
+	measure 'Avg Renewable Penetration %' = AVERAGE(vw_grid_stress[renewable_penetration_pct])
+		formatString: 0.0"%"
+		lineageTag: 56080a85-46fa-43af-93d7-427919aab527
+
+	column calendar_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 8f2b54b3-2cee-4e6e-a314-db90a2ff829f
+		summarizeBy: sum
+		sourceColumn: calendar_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: 032602e8-9f60-439e-93ae-3a94f316a091
+		summarizeBy: sum
+		sourceColumn: calendar_quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_month
+		dataType: int64
+		formatString: 0
+		lineageTag: e94fb3b7-a177-4349-bb35-4cd461ee6243
+		summarizeBy: sum
+		sourceColumn: calendar_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_date
+		dataType: string
+		lineageTag: 5c336bef-8fdb-4ccb-a697-c119133bbf77
+		summarizeBy: none
+		sourceColumn: calendar_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column hour_of_day
+		dataType: int64
+		formatString: 0
+		lineageTag: 356bc3dc-2c47-4717-ac19-a18f6b208cd7
+		summarizeBy: sum
+		sourceColumn: hour_of_day
+
+		annotation SummarizationSetBy = Automatic
+
+	column ba_code
+		dataType: string
+		lineageTag: ff3ad660-ae55-4423-8ab8-4e49d1f89447
+		summarizeBy: none
+		sourceColumn: ba_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column ba_name
+		dataType: string
+		lineageTag: 459a5403-e3dd-4d29-8485-0d1038fa411b
+		summarizeBy: none
+		sourceColumn: ba_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: 318d361e-b6d3-49a3-b8df-70b008e4f5b1
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column demand_mw
+		dataType: double
+		lineageTag: 82a83410-0272-404f-84b4-4e038a7e1025
+		summarizeBy: sum
+		sourceColumn: demand_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column demand_forecast_mw
+		dataType: double
+		lineageTag: ce84b3bc-cc13-47ce-b6b8-b38a79ca16af
+		summarizeBy: sum
+		sourceColumn: demand_forecast_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column demand_forecast_error_mw
+		dataType: double
+		lineageTag: 657bf45b-2356-4940-a660-937ba296ba8f
+		summarizeBy: sum
+		sourceColumn: demand_forecast_error_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_generation_mw
+		dataType: double
+		lineageTag: 4cbf92a3-726a-4447-a66c-443321d0aeee
+		summarizeBy: sum
+		sourceColumn: total_generation_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_renewable_generation_mw
+		dataType: double
+		lineageTag: 8e7bb79d-b8b8-4f10-82e2-ba6c52ec3705
+		summarizeBy: sum
+		sourceColumn: total_renewable_generation_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column renewable_penetration_pct
+		dataType: double
+		lineageTag: 66b1bab6-7a06-45fb-8028-2377311e0423
+		summarizeBy: sum
+		sourceColumn: renewable_penetration_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column net_interchange_mw
+		dataType: double
+		lineageTag: f7c96421-6c43-4c11-812d-31c0c14d97a8
+		summarizeBy: sum
+		sourceColumn: net_interchange_mw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column grid_stress_alert_level
+		dataType: string
+		lineageTag: 959a30d0-408f-4c5c-b796-4ea8e3620746
+		summarizeBy: none
+		sourceColumn: grid_stress_alert_level
+
+		annotation SummarizationSetBy = Automatic
+
+	partition vw_grid_stress = m
+		mode: import
+		source =
+				let
+				    Source = Databricks.Catalogs("dbc-4a52ea97-5404.cloud.databricks.com", "/sql/1.0/warehouses/605270cce316765a", [Catalog=null, Database=null, QueryTags=null, EnableAutomaticProxyDiscovery=null, Implementation="2.0", Protocol=null]),
+				    dwbi_catalog_Database = Source{[Name="dwbi_catalog",Kind="Database"]}[Data],
+				    gold_marts_Schema = dwbi_catalog_Database{[Name="gold_marts",Kind="Schema"]}[Data],
+				    vw_grid_stress_View = gold_marts_Schema{[Name="vw_grid_stress",Kind="View"]}[Data]
+				in
+				    vw_grid_stress_View
+

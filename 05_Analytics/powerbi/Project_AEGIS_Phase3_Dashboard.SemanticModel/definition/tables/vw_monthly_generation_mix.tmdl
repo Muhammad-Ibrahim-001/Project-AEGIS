@@ -1,0 +1,103 @@
+table vw_monthly_generation_mix
+	lineageTag: 94c3c8dd-c838-450f-8129-3a677f57824b
+
+	column calendar_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 9b059bfd-162f-4558-ad6e-e1f05258f6c3
+		summarizeBy: sum
+		sourceColumn: calendar_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_month
+		dataType: int64
+		formatString: 0
+		lineageTag: f83b01fc-a364-428f-9e37-35821a303bed
+		summarizeBy: sum
+		sourceColumn: calendar_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name
+		dataType: string
+		lineageTag: 9a0bd026-1a6c-4411-b1fb-6311f033dc99
+		summarizeBy: none
+		sourceColumn: month_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column state_code
+		dataType: string
+		lineageTag: 6228c403-2094-40d3-8473-b4b9c7bae762
+		summarizeBy: none
+		sourceColumn: state_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column prime_mover_code
+		dataType: string
+		lineageTag: fecd67db-c561-4e7c-9bbd-2c70e7dd279c
+		summarizeBy: none
+		sourceColumn: prime_mover_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column energy_source_code
+		dataType: string
+		lineageTag: 195c6d54-7a13-45db-855a-92e456cc8ab3
+		summarizeBy: none
+		sourceColumn: energy_source_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_net_generation_mwh
+		dataType: double
+		lineageTag: 8b912d31-dece-4ce0-baa6-0aac18ba5795
+		summarizeBy: sum
+		sourceColumn: total_net_generation_mwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_fuel_mmbtu
+		dataType: double
+		lineageTag: 87e88ea2-04a5-426c-93bd-3c5c6ead613b
+		summarizeBy: sum
+		sourceColumn: total_fuel_mmbtu
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column weighted_heat_rate_btu_kwh
+		dataType: double
+		lineageTag: 32eabad2-c3c1-4009-ae83-b86839678f23
+		summarizeBy: sum
+		sourceColumn: weighted_heat_rate_btu_kwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column active_plants_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 2ef07cab-0407-422e-b45d-dae2f9df3ed1
+		summarizeBy: sum
+		sourceColumn: active_plants_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition vw_monthly_generation_mix = m
+		mode: import
+		source =
+				let
+				    Source = Databricks.Catalogs("dbc-4a52ea97-5404.cloud.databricks.com", "/sql/1.0/warehouses/605270cce316765a", [Catalog=null, Database=null, QueryTags=null, EnableAutomaticProxyDiscovery=null, Implementation="2.0", Protocol=null]),
+				    dwbi_catalog_Database = Source{[Name="dwbi_catalog",Kind="Database"]}[Data],
+				    gold_marts_Schema = dwbi_catalog_Database{[Name="gold_marts",Kind="Schema"]}[Data],
+				    vw_monthly_generation_mix_View = gold_marts_Schema{[Name="vw_monthly_generation_mix",Kind="View"]}[Data]
+				in
+				    vw_monthly_generation_mix_View
+
